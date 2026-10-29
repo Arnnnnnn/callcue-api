@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CallCue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#121212;--card:#1b1b1b;--line:#333;--ink:#f2f2f2;--mute:#9a9a9a;--blue:#4da3ff;--blue-bg:#0a2a4d;--tile:#242424;--bad:#ff7b72}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.4 Inter,system-ui,Segoe UI,Roboto,sans-serif;padding:16px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.card{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.top h1{font-size:18px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#3ddc84}
+.timer{font:500 14px ui-monospace,Consolas,monospace;color:var(--mute)}
+.lbl{color:var(--mute);font-size:13px;margin:14px 0 8px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.b{background:transparent;border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:500}
+.b:hover{border-color:#666}
+.b.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.say{background:var(--blue-bg);border-radius:8px;padding:12px 14px;margin-top:14px;color:var(--blue)}
+.say small{display:block;font-size:12px;margin-bottom:4px}
+.say p{margin:0;font-size:17px;font-weight:500}
+.inrow{display:flex;gap:8px;margin-top:12px}
+.inrow input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}
+.inrow input::placeholder{color:#777}
+.sug{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:12px;min-height:84px}
+.sug small{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}
+.sug .r{font-size:18px;font-weight:600;margin:0}
+.sug .f{font-size:14px;font-weight:500;margin:8px 0 0}
+.sug .h{color:var(--mute);margin:0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:12px}
+.tile{background:var(--tile);border-radius:8px;padding:10px 12px}
+.tile small{display:block;font-size:12px;color:var(--mute)}
+.tile b{font-size:22px;font-weight:600}
+.msg{font-size:13px;color:var(--mute);min-height:18px;margin:10px 0 0}
+.msg.err{color:var(--bad)}
+.sep{margin-top:18px;color:var(--mute);font-size:13px}
+@media(max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="top"><h1><span class="dot"></span>Call in progress</h1><span class="timer" id="timer">00:00</span></div>
+
+  <div class="lbl">1. Where are you in the call?</div>
+  <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
+  <div class="say" aria-live="polite"><small>Say next</small><p id="say"></p></div>
+
+  <div class="lbl">2. Prospect pushed back? Tap what they said</div>
+  <div class="btns" id="chips"></div>
+  <div class="inrow">
+    <input id="said" type="text" placeholder="Or type what they said" autocomplete="off">
+    <button class="b" id="go">Get reply</button>
+  </div>
+  <div class="sug" id="sug" aria-live="polite"><small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p></div>
+
+  <div class="lbl">3. Call ended? Log the outcome</div>
+  <div class="btns" id="outs"></div>
+
+  <div class="sep" id="sepl">Logged so far (saved in Supabase)</div>
+  <div class="tiles" id="tiles"></div>
+  <p class="msg" id="msg">Connecting to the server. The first load can take up to a minute.</p>
+</main>
+
+<script>
+const API="https://callcue-api.onrender.com";
+const STAGES=["Opening","Discovery","Pitch","Objection","Close"];
+const OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
+/* Fallback lines. Add playbook rows with stage = opening / discovery / pitch / close to override them from Supabase. */
+const SAY={
+ Opening:"Hi, this is Aryan from DeepThought. Do you have 30 seconds?",
+ Discovery:"How do you handle this today, and what is the biggest headache with it?",
+ Pitch:"Based on that, here is how we would fix it in one sentence. Does that sound useful?",
+ Objection:"Tap what they said below, or type it.",
+ Close:"Can we book 15 minutes this week? Would Thursday or Friday suit you better?"
+};
+const $=id=>document.getElementById(id);
+let stage="Opening",objection=null,secs=0,busy=false,playbook=[];
+
+async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
+function msg(t,err){const m=$("msg");m.textContent=t;m.className="msg"+(err?" err":"");}
+function mk(txt,cls,fn){const b=document.createElement("button");b.className=cls;b.textContent=txt;b.onclick=fn;return b;}
+
+function drawStages(){
+  const box=$("stages");box.innerHTML="";
+  STAGES.forEach((s,i)=>{
+    const b=mk((i+1)+" "+s,"b"+(s===stage?" on":""),()=>{stage=s;drawStages();});
+    b.setAttribute("aria-pressed",s===stage);box.appendChild(b);
+  });
+  const row=playbook.find(p=>(p.stage||"").toLowerCase()===stage.toLowerCase()&&stage!=="Objection");
+  $("say").textContent=row?row.reply:SAY[stage];
+}
+function tick(){secs++;$("timer").textContent=String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0");}
+setInterval(tick,1000);
+
+function show(d){
+  const s=$("sug");s.innerHTML="";
+  const a=document.createElement("small");a.textContent=d.objection?"Suggested reply ("+d.objection+")":"Suggested reply (no exact match)";
+  const r=document.createElement("p");r.className="r";r.textContent=d.reply;
+  const f=document.createElement("p");f.className="f";f.textContent="Then ask: "+d.follow_up;
+  s.append(a,r,f);
+}
+async function reply(text){
+  text=text.trim();if(!text||busy)return;
+  busy=true;$("go").disabled=true;$("go").textContent="Thinking…";
+  try{
+    const d=await api("/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+    objection=d.objection;show(d);msg("");
+  }catch(e){msg("Could not get a reply. Check your connection and try again.",true);}
+  finally{busy=false;$("go").disabled=false;$("go").textContent="Get reply";}
+}
+async function loadCounts(){
+  try{
+    const d=await api("/stats");$("tiles").innerHTML="";
+    OUTCOMES.forEach(o=>{
+      const t=document.createElement("div");t.className="tile";
+      const s=document.createElement("small");s.textContent=o;
+      const b=document.createElement("b");b.textContent=(d.outcomes&&d.outcomes[o])||0;
+      t.append(s,b);$("tiles").appendChild(t);
+    });
+  }catch(e){msg("Could not load counts.",true);}
+}
+async function log(o){
+  try{
+    await api("/calls",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({outcome:o,objection})});
+    msg("Logged: "+o);objection=null;stage="Opening";secs=0;$("timer").textContent="00:00";
+    $("said").value="";$("sug").innerHTML='<small>Suggested reply</small><p class="h">Call logged. Ready for the next one.</p>';
+    drawStages();loadCounts();
+  }catch(e){msg("Could not save the outcome. Try again.",true);}
+}
+
+OUTCOMES.forEach(o=>$("outs").appendChild(mk(o,"b",()=>log(o))));
+$("go").onclick=()=>reply($("said").value);
+$("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();reply($("said").value);}});
+drawStages();
+(async()=>{
+  try{
+    playbook=await api("/playbook");
+    playbook.filter(p=>p.stage==="objection").forEach(p=>$("chips").appendChild(mk(p.objection,"b",()=>{$("said").value=p.objection;reply(p.objection);})));
+    drawStages();msg("");
+  }catch(e){msg("Server is not responding. Wait a minute and reload.",true);}
+  loadCounts();
+})();
+</script>
+</body>
+</html>
