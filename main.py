@@ -138,8 +138,9 @@ def say(b: SayIn):
     facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
     system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
               f"'{b.stage}' stage of the call so it fits this person. Use only the facts given, "
-              "never invent details, keep the same intent, and write 1 or 2 short sentences "
-              "that sound natural when spoken. Return only the line.")
+              "never invent details, and keep the same intent. "
+              "Do not claim to already know the person's situation; ask or hint instead, for example 'I imagine' or 'a lot of clinics tell us'. "
+              "Write 1 or 2 short sentences that sound natural when spoken. Return only the line.")
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
