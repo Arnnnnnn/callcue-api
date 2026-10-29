@@ -63,6 +63,8 @@ button.tile:hover{border-color:var(--line)}
 .hrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .hrow .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
 .hrow small{color:var(--mute);font-weight:400;font-size:.75rem}
+.hrow .who{font-weight:500}
+.hrow a{color:var(--blue)}
 .hrow p{margin:6px 0 0;font-size:.88rem;white-space:pre-wrap}
 .callbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:var(--gap);padding:12px var(--pad)}
 .callbar b{margin-right:12px;font-weight:600}
@@ -112,6 +114,7 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
             <input class="fld" id="pname" type="text" placeholder="Name" autocomplete="off">
             <input class="fld" id="pco" type="text" placeholder="Company or business" autocomplete="off">
           </div>
+          <input class="fld" id="pcontact" type="text" placeholder="Phone or email" autocomplete="off">
           <input class="fld" id="pnotes" type="text" placeholder="What you know: industry, size, pain point" autocomplete="off">
         </div>
       </section>
@@ -172,7 +175,7 @@ try{Object.assign(P,JSON.parse(localStorage.getItem("callcue.prefs")||"{}"));}ca
 const savePrefs=()=>{try{localStorage.setItem("callcue.prefs",JSON.stringify(P));}catch(e){}};
 const $=id=>document.getElementById(id);
 let stage="Opening",objection=null,secs=0,busy=false,playbook=[],adaptId=0,sayId=0,pt;
-let prospect={name:"",company:"",notes:""},sayCache={};
+let prospect={name:"",company:"",notes:""},sayCache={},contact="";
 const known=()=>prospect.name||prospect.company||prospect.notes;
 const fill=t=>t.replace(/\{me\}/g,P.name||"[your name]").replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
 
@@ -291,6 +294,9 @@ function drawHistory(){
     const o=document.createElement("span");o.textContent=c.outcome;
     const w=document.createElement("small");w.textContent=c.created_at?new Date(c.created_at).toLocaleString([],{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}):"";
     t.append(o,w);d.appendChild(t);
+    const who=[c.prospect_name,c.prospect_company].filter(Boolean).join(", ");
+    if(who){const p=document.createElement("p");p.className="who";p.textContent=who;d.appendChild(p);}
+    if(c.prospect_contact){const p=document.createElement("p"),a=document.createElement("a"),v=c.prospect_contact;a.textContent=v;a.href=v.includes("@")?"mailto:"+v:"tel:"+v.replace(/[^\d+]/g,"");p.appendChild(a);d.appendChild(p);}
     if(c.objection){const p=document.createElement("p");p.textContent="Objection: "+c.objection;d.appendChild(p);}
     if(c.notes){const p=document.createElement("p");p.textContent=c.notes;d.appendChild(p);}
     h.appendChild(d);
@@ -302,7 +308,7 @@ async function loadCounts(){
 }
 function resetCall(){
   objection=null;stage="Opening";secs=0;choice=null;$("timer").textContent="00:00";
-  prospect={name:"",company:"",notes:""};["pname","pco","pnotes","said","notes","oth"].forEach(i=>$(i).value="");
+  prospect={name:"",company:"",notes:""};["pname","pco","pcontact","pnotes","said","notes","oth"].forEach(i=>$(i).value="");contact="";
   try{localStorage.removeItem("callcue.notes");}catch(e){}
   $("sug").innerHTML='<small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p>';
   setState("idle");drawStages();
@@ -312,9 +318,9 @@ async function save(){
   if(!outcome){msg("Pick an outcome or type one.",true);return;}
   $("save").disabled=true;
   try{
-    const d=await post("/calls",{outcome,objection,notes:notes||null});
+    const d=await post("/calls",{outcome,objection,notes:notes||null,prospect_name:prospect.name||null,prospect_company:prospect.company||null,prospect_contact:contact||null});
     resetCall();loadCounts();
-    msg(notes&&d.notes_saved===false?"Saved, but your notes were not stored. Add the notes column in Supabase.":"Saved: "+outcome,notes&&d.notes_saved===false);
+    msg(d.details_saved===false?"Saved, but some details were not stored. Add the new columns in Supabase.":"Saved: "+outcome,d.details_saved===false);
   }catch(e){msg("Could not save the call. Try again.",true);}
   finally{$("save").disabled=false;}
 }
@@ -332,6 +338,7 @@ $("notes").addEventListener("input",()=>{try{localStorage.setItem("callcue.notes
 $("go").onclick=()=>reply($("said").value);
 $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();reply($("said").value);}});
 ["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",()=>{prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};schedule();}));
+$("pcontact").addEventListener("input",()=>{contact=$("pcontact").value.trim();});
 $("sname").value=P.name;
 $("sname").addEventListener("input",()=>{P.name=$("sname").value.trim();savePrefs();applyPrefs();schedule();});
 $("gear").onclick=()=>{const p=$("panel"),open=p.classList.toggle("hide")===false;$("gear").setAttribute("aria-expanded",open);};

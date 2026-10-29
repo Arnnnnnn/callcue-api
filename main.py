@@ -60,6 +60,9 @@ class Outcome(BaseModel):
     outcome: str
     objection: str | None = None
     notes: str | None = None
+    prospect_name: str | None = None
+    prospect_company: str | None = None
+    prospect_contact: str | None = None
 
 
 @app.get("/")
@@ -123,15 +126,21 @@ def reply(s: Said):
 def log_call(o: Outcome):
     url = f"{SB_URL}/rest/v1/calls"
     body = {"outcome": o.outcome, "objection": o.objection}
-    notes_saved = False
+    notes = {"notes": o.notes} if o.notes else {}
+    who = {k: v for k, v in {"prospect_name": o.prospect_name,
+                              "prospect_company": o.prospect_company,
+                              "prospect_contact": o.prospect_contact}.items() if v}
+    attempts = [{**body, **notes, **who}]
+    if who and notes:
+        attempts.append({**body, **notes})
+    if who or notes:
+        attempts.append(body)
     r = None
-    if o.notes:
-        r = requests.post(url, headers=H, timeout=15, json={**body, "notes": o.notes})
-        notes_saved = r.ok
-    if r is None or not r.ok:
-        r = requests.post(url, headers=H, timeout=15, json=body)
+    for i, payload in enumerate(attempts):
+        r = requests.post(url, headers=H, timeout=15, json=payload)
+        if r.ok:
+            return {**r.json()[0], "details_saved": i == 0}
     r.raise_for_status()
-    return {**r.json()[0], "notes_saved": notes_saved if o.notes else True}
 
 
 @app.get("/calls")
