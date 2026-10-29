@@ -59,6 +59,7 @@ class Said(BaseModel):
 class Outcome(BaseModel):
     outcome: str
     objection: str | None = None
+    notes: str | None = None
 
 
 @app.get("/")
@@ -120,10 +121,17 @@ def reply(s: Said):
 
 @app.post("/calls")
 def log_call(o: Outcome):
-    r = requests.post(f"{SB_URL}/rest/v1/calls", headers=H, timeout=15,
-                      json={"outcome": o.outcome, "objection": o.objection})
+    url = f"{SB_URL}/rest/v1/calls"
+    body = {"outcome": o.outcome, "objection": o.objection}
+    notes_saved = False
+    r = None
+    if o.notes:
+        r = requests.post(url, headers=H, timeout=15, json={**body, "notes": o.notes})
+        notes_saved = r.ok
+    if r is None or not r.ok:
+        r = requests.post(url, headers=H, timeout=15, json=body)
     r.raise_for_status()
-    return r.json()[0]
+    return {**r.json()[0], "notes_saved": notes_saved if o.notes else True}
 
 
 @app.get("/stats")

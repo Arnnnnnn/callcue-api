@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,110 +8,203 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#121212;--card:#1b1b1b;--line:#333;--ink:#f2f2f2;--mute:#9a9a9a;--blue:#4da3ff;--blue-bg:#0a2a4d;--tile:#242424;--bad:#ff7b72}
+:root,[data-theme=dark]{--bg:#121212;--card:#1b1b1b;--line:#333;--ink:#f2f2f2;--mute:#9a9a9a;--tile:#242424;--bad:#ff7b72;--blue:#4da3ff}
+[data-theme=light]{--bg:#f4f5f7;--card:#fff;--line:#dcdfe4;--ink:#1c1e21;--mute:#667085;--tile:#f0f2f5;--bad:#d92d20}
+[data-theme=warm]{--bg:#2a2320;--card:#352c28;--line:#4d423c;--ink:#f6ede4;--mute:#b8a79a;--tile:#3f3530;--bad:#ff8a7a}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.4 Inter,system-ui,Segoe UI,Roboto,sans-serif;padding:16px}
+html{font-size:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 .94rem/1.45 Inter,system-ui,Segoe UI,Roboto,sans-serif;padding:20px 16px 40px;--gap:16px;--pad:18px}
+body.compact{--gap:10px;--pad:12px}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-.card{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.top h1{font-size:18px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
+.hide{display:none!important}
+.wrap{max-width:1000px;margin:0 auto}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:var(--gap)}
+.bar h1{font-size:1.2rem;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
+.bar p{margin:2px 0 0;color:var(--mute);font-size:.85rem}
 .dot{width:9px;height:9px;border-radius:50%;background:#3ddc84}
-.timer{font:500 14px ui-monospace,Consolas,monospace;color:var(--mute)}
-.lbl{color:var(--mute);font-size:13px;margin:14px 0 8px}
+.right{display:flex;align-items:center;gap:10px}
+.timer{font:500 .9rem ui-monospace,Consolas,monospace;color:var(--mute)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);align-items:start}
+.col{display:flex;flex-direction:column;gap:var(--gap);min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:var(--pad)}
+.card h2{font-size:.8rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
-.b{background:transparent;border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:500}
-.b:hover{border-color:#666}
-.b.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
-.say{background:var(--blue-bg);border-radius:8px;padding:12px 14px;margin-top:14px;color:var(--blue)}
-.say small{display:block;font-size:12px;margin-bottom:4px}
-.say p{margin:0;font-size:17px;font-weight:500}
+.b{background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-weight:500}
+.b:hover{border-color:var(--mute)}
+.b.on{background:color-mix(in srgb,var(--blue) 16%,var(--card));border-color:var(--blue);color:var(--blue)}
+.fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:1rem}
+.fld::placeholder{color:var(--mute);opacity:.7}
+.stack{display:flex;flex-direction:column;gap:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .inrow{display:flex;gap:8px;margin-top:12px}
-.inrow input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}
-.inrow input::placeholder{color:#777}
-.sug{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:12px;min-height:84px}
-.sug small{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}
-.sug .r{font-size:18px;font-weight:600;margin:0}
-.sug .f{font-size:14px;font-weight:500;margin:8px 0 0}
+.inrow .fld{flex:1;min-width:0;width:auto}
+.say{background:color-mix(in srgb,var(--blue) 16%,var(--card));border-radius:10px;padding:12px 14px;margin-top:12px;color:var(--blue)}
+.say small{display:block;font-size:.75rem;margin-bottom:4px;opacity:.85}
+.say p{margin:0;font-size:1.08rem;font-weight:500}
+.sug{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;min-height:90px}
+.sug small{display:block;color:var(--mute);font-size:.75rem;margin-bottom:4px}
+.sug .r{font-size:1.12rem;font-weight:600;margin:0}
+.sug .f{font-size:.9rem;font-weight:500;margin:8px 0 0}
 .sug .h{color:var(--mute);margin:0}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:12px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
 .tile{background:var(--tile);border-radius:8px;padding:10px 12px}
-.tile small{display:block;font-size:12px;color:var(--mute)}
-.tile b{font-size:22px;font-weight:600}
-.msg{font-size:13px;color:var(--mute);min-height:18px;margin:10px 0 0}
+.tile small{display:block;font-size:.75rem;color:var(--mute)}
+.tile b{font-size:1.4rem;font-weight:600}
+.msg{font-size:.8rem;color:var(--mute);min-height:18px;margin:12px 0 0}
 .msg.err{color:var(--bad)}
-.sep{margin-top:18px;color:var(--mute);font-size:13px}
-.pf{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pf input,.inrow input{background:var(--card)}
-.pf input{min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}
-.pf input::placeholder{color:#777}
-@media(max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.panel{margin-bottom:var(--gap)}
+.callbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:var(--gap);padding:12px var(--pad)}
+.callbar b{margin-right:12px;font-weight:600}
+.b.go{background:var(--blue);border-color:var(--blue);color:#101010}
+.b.end{background:var(--bad);border-color:var(--bad);color:#101010}
+.b:disabled{opacity:.5;cursor:default}
+textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
+.live.off{opacity:.45;pointer-events:none}
+.tiles{grid-template-columns:repeat(3,1fr)!important}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.row:first-of-type{border-top:0}
+.row label{color:var(--mute);font-size:.85rem}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
+.sw.on{border-color:var(--ink)}
+.row .fld{max-width:240px}
+@media(max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)!important}.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}.bar p{display:none}}
 </style>
 </head>
 <body>
-<main class="card">
-  <div class="top"><h1><span class="dot"></span>Call in progress</h1><span class="timer" id="timer">00:00</span></div>
+<div class="wrap">
+  <header class="bar">
+    <div><h1><span class="dot"></span>CallCue</h1><p id="hello"></p></div>
+    <div class="right"><button class="b" id="gear" aria-expanded="false">Customise</button></div>
+  </header>
 
-  <div class="lbl">0. Who are you calling? (optional, lines update as you type)</div>
-  <div class="pf">
-    <input id="pname" type="text" placeholder="Name" autocomplete="off">
-    <input id="pco" type="text" placeholder="Company or business" autocomplete="off">
+  <section class="card panel hide" id="panel" aria-label="Customise">
+    <h2>Make it yours</h2>
+    <div class="row"><label for="sname">Your name (used when you introduce yourself)</label><input class="fld" id="sname" type="text" placeholder="Your name" autocomplete="off"></div>
+    <div class="row"><label>Theme</label><div class="btns" id="themes"></div></div>
+    <div class="row"><label>Accent colour</label><div class="btns" id="accents"></div></div>
+    <div class="row"><label>Text size</label><div class="btns" id="sizes"></div></div>
+    <div class="row"><label>Layout</label><div class="btns" id="opts"></div></div>
+    <div class="row"><label>Saved in this browser only</label><button class="b" id="reset">Reset to default</button></div>
+  </section>
+
+  <section class="card callbar" id="callbar">
+    <div><b id="cstat">No active call</b><span class="timer" id="timer">00:00</span></div>
+    <button class="b go" id="callbtn">Start call</button>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>Who are you calling? (optional)</h2>
+        <div class="stack">
+          <div class="two">
+            <input class="fld" id="pname" type="text" placeholder="Name" autocomplete="off">
+            <input class="fld" id="pco" type="text" placeholder="Company or business" autocomplete="off">
+          </div>
+          <input class="fld" id="pnotes" type="text" placeholder="What you know: industry, size, pain point" autocomplete="off">
+        </div>
+      </section>
+      <section class="card live">
+        <h2>1. Where are you in the call?</h2>
+        <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
+        <div class="say" aria-live="polite"><small>Say next</small><p id="say"></p></div>
+      </section>
+      <section class="card live">
+        <h2>Call notes</h2>
+        <textarea class="fld" id="notes" placeholder="Jot down what they say, names, follow-ups. Saved with the call."></textarea>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card live">
+        <h2>2. Prospect pushed back?</h2>
+        <div class="btns" id="chips"></div>
+        <div class="inrow">
+          <input class="fld" id="said" type="text" placeholder="Or type what they said" autocomplete="off">
+          <button class="b" id="go">Get reply</button>
+        </div>
+        <div class="sug" id="sug" aria-live="polite"><small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p></div>
+      </section>
+      <section class="card hide" id="logcard">
+        <h2>How did the call go?</h2>
+        <div class="btns" id="outs"></div>
+        <input class="fld" id="oth" type="text" placeholder="Other outcome (type it if none of these fit)" autocomplete="off" style="margin-top:10px">
+        <div class="inrow"><button class="b go" id="save">Save call</button><button class="b" id="discard">Discard</button></div>
+      </section>
+      <section class="card">
+        <h2>Your calls</h2>
+        <div class="tiles" id="tiles"></div>
+        <p class="msg" id="msg">Connecting to the server. The first load can take up to a minute.</p>
+      </section>
+    </div>
   </div>
-  <div class="inrow">
-    <input id="pnotes" type="text" placeholder="What you know: industry, size, pain point" autocomplete="off">
-  </div>
-
-  <div class="lbl">1. Where are you in the call?</div>
-  <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
-  <div class="say" aria-live="polite"><small>Say next</small><p id="say"></p></div>
-
-  <div class="lbl">2. Prospect pushed back? Tap what they said</div>
-  <div class="btns" id="chips"></div>
-  <div class="inrow">
-    <input id="said" type="text" placeholder="Or type what they said" autocomplete="off">
-    <button class="b" id="go">Get reply</button>
-  </div>
-  <div class="sug" id="sug" aria-live="polite"><small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p></div>
-
-  <div class="lbl">3. Call ended? Log the outcome</div>
-  <div class="btns" id="outs"></div>
-
-  <div class="sep" id="sepl">Logged so far (saved in Supabase)</div>
-  <div class="tiles" id="tiles"></div>
-  <p class="msg" id="msg">Connecting to the server. The first load can take up to a minute.</p>
-</main>
+</div>
 
 <script>
 const API="https://callcue-api.onrender.com";
 const STAGES=["Opening","Discovery","Pitch","Objection","Close"];
 const OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
-/* Fallback lines. Add playbook rows with stage = opening / discovery / pitch / close to override them from Supabase. */
 const SAY={
- Opening:"Hi {name}, this is Aryan. Do you have 30 seconds?",
- Discovery:"How do you handle this today, and what is the biggest headache with it?",
- Pitch:"Based on that, here is how we would fix it in one sentence. Does that sound useful?",
- Objection:"Tap what they said below, or type it.",
+ Opening:"Hi {name}, this is {me}. I know I am calling out of the blue. Do you have 30 seconds?",
+ Discovery:"How does {company} handle this today, and what is the biggest headache with it?",
+ Pitch:"Based on what you said, we can help {company} fix that without adding work for your team. Would a short walkthrough be useful?",
+ Objection:"Tap what they said, or type it.",
  Close:"Can we book 15 minutes this week? Would Thursday or Friday suit you better?"
 };
+const ACCENTS=["#4da3ff","#3ddc84","#ff9f43","#c77dff","#ff6b81"];
+const THEMES={dark:"Dark",light:"Light",warm:"Warm"};
+const SIZES={S:"14px",M:"16px",L:"18px"};
+const DEF={name:"",theme:"dark",accent:ACCENTS[0],size:"M",compact:false,timer:true};
+let P={...DEF};
+try{Object.assign(P,JSON.parse(localStorage.getItem("callcue.prefs")||"{}"));}catch(e){}
+const savePrefs=()=>{try{localStorage.setItem("callcue.prefs",JSON.stringify(P));}catch(e){}};
 const $=id=>document.getElementById(id);
-let stage="Opening",objection=null,secs=0,busy=false,playbook=[];
-let prospect={name:"",company:"",notes:""},sayCache={},sayId=0;
-const fill=t=>t.replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
-function baseFor(st){const row=playbook.find(p=>(p.stage||"").toLowerCase()===st.toLowerCase()&&st!=="Objection");return fill(row?row.reply:SAY[st]);}
+let stage="Opening",objection=null,secs=0,busy=false,playbook=[],adaptId=0,sayId=0,pt;
+let prospect={name:"",company:"",notes:""},sayCache={};
 const known=()=>prospect.name||prospect.company||prospect.notes;
+const fill=t=>t.replace(/\{me\}/g,P.name||"[your name]").replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
+
+async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
+function msg(t,err){const m=$("msg");m.textContent=t;m.className="msg"+(err?" err":"");}
+function mk(txt,cls,fn){const b=document.createElement("button");b.className=cls;b.textContent=txt;b.onclick=fn;return b;}
+const post=(p,body)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+
+/* ---- customise ---- */
+function group(id,items,isOn,pick){
+  const box=$(id);box.innerHTML="";
+  items.forEach(([k,label])=>{const b=mk(label,"b"+(isOn(k)?" on":""),()=>{pick(k);savePrefs();applyPrefs();});box.appendChild(b);});
+}
+function drawControls(){
+  group("themes",Object.entries(THEMES),k=>P.theme===k,k=>P.theme=k);
+  group("sizes",[["S","Small"],["M","Medium"],["L","Large"]],k=>P.size===k,k=>P.size=k);
+  group("opts",[["compact","Compact"],["timer","Show timer"]],k=>P[k],k=>P[k]=!P[k]);
+  const box=$("accents");box.innerHTML="";
+  ACCENTS.forEach(c=>{const b=mk("","b sw"+(P.accent===c?" on":""),()=>{P.accent=c;savePrefs();applyPrefs();});b.style.background=c;b.setAttribute("aria-label","Accent "+c);box.appendChild(b);});
+}
+function applyPrefs(){
+  const h=document.documentElement;
+  h.dataset.theme=P.theme;h.style.setProperty("--blue",P.accent);h.style.fontSize=SIZES[P.size]||"16px";
+  document.body.classList.toggle("compact",!!P.compact);
+  $("timer").classList.toggle("hide",!P.timer);
+  const hr=new Date().getHours(),g=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
+  $("hello").textContent=g+(P.name?", "+P.name:"")+". Ready for the next call?";
+  drawControls();
+}
+
+/* ---- stage lines ---- */
+function baseFor(st){const row=playbook.find(p=>(p.stage||"").toLowerCase()===st.toLowerCase()&&st!=="Objection");return fill(row?row.reply:SAY[st]);}
+const keyFor=st=>st+"|"+P.name+"|"+JSON.stringify(prospect);
 async function fetchLine(st){
-  const base=baseFor(st),key=st+"|"+JSON.stringify(prospect);
+  const base=baseFor(st),key=keyFor(st);
   if(sayCache[key])return sayCache[key];
-  try{
-    const d=await api("/say",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({stage:st.toLowerCase(),base,name:prospect.name,company:prospect.company,notes:prospect.notes})});
-    sayCache[key]=d.line;return d.line;
-  }catch(e){return base;}
+  try{const d=await post("/say",{stage:st.toLowerCase(),base,name:prospect.name,company:prospect.company,notes:prospect.notes});sayCache[key]=d.line;return d.line;}
+  catch(e){return base;}
 }
 async function setSay(){
   if(stage==="Objection"||!known()){$("say").textContent=baseFor(stage);return;}
-  const id=++sayId,key=stage+"|"+JSON.stringify(prospect);
-  if(!sayCache[key])$("say").textContent="Personalising…";
+  const id=++sayId;
+  if(!sayCache[keyFor(stage)])$("say").textContent="Personalising…";
   const line=await fetchLine(stage);
   if(id===sayId)$("say").textContent=line;
 }
@@ -119,34 +212,26 @@ async function prefetch(){
   const snap=JSON.stringify(prospect);
   for(const st of ["Opening","Discovery","Pitch","Close"]){if(JSON.stringify(prospect)!==snap)return;await fetchLine(st);}
 }
-
-async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
-function msg(t,err){const m=$("msg");m.textContent=t;m.className="msg"+(err?" err":"");}
-function mk(txt,cls,fn){const b=document.createElement("button");b.className=cls;b.textContent=txt;b.onclick=fn;return b;}
-
+function schedule(){clearTimeout(pt);pt=setTimeout(async()=>{await setSay();prefetch();},800);}
 function drawStages(){
   const box=$("stages");box.innerHTML="";
-  STAGES.forEach((s,i)=>{
-    const b=mk((i+1)+" "+s,"b"+(s===stage?" on":""),()=>{stage=s;drawStages();});
-    b.setAttribute("aria-pressed",s===stage);box.appendChild(b);
-  });
+  STAGES.forEach((s,i)=>{const b=mk((i+1)+" "+s,"b"+(s===stage?" on":""),()=>{stage=s;drawStages();});b.setAttribute("aria-pressed",s===stage);box.appendChild(b);});
   setSay();
 }
-function tick(){secs++;$("timer").textContent=String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0");}
-setInterval(tick,1000);
+setInterval(()=>{if(state!=="call")return;secs++;$("timer").textContent=String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0");},1000);
 
+/* ---- objections ---- */
 function show(d){
   const s=$("sug");s.innerHTML="";
   const a=document.createElement("small");a.textContent=d.objection?"Suggested reply ("+d.objection+")":"Suggested reply (no exact match)";
   const r=document.createElement("p");r.className="r";r.textContent=d.reply;
-  const f=document.createElement("p");f.className="f";f.textContent="Then ask: "+d.follow_up;
+  const f=document.createElement("p");f.className="f";f.textContent="Then ask: "+(d.follow_up||"");
   s.append(a,r,f);
 }
-let adaptId=0;
 async function adaptReply(said,d){
   const my=++adaptId;
   try{
-    const a=await api("/adapt",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({said,reply:d.reply,follow_up:d.follow_up||"",name:prospect.name,company:prospect.company,notes:prospect.notes})});
+    const a=await post("/adapt",{said,reply:d.reply,follow_up:d.follow_up||"",name:prospect.name,company:prospect.company,notes:prospect.notes});
     if(my===adaptId&&a.reply)show({objection:d.objection,reply:a.reply,follow_up:a.follow_up||d.follow_up});
   }catch(e){}
 }
@@ -154,42 +239,75 @@ async function reply(text,row){
   text=text.trim();if(!text||busy)return;
   busy=true;$("go").disabled=true;$("go").textContent="Thinking…";
   try{
-    const d=row?{objection:row.objection,reply:row.reply,follow_up:row.follow_up||""}:await api("/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+    const d=row?{objection:row.objection,reply:row.reply,follow_up:row.follow_up||""}:await post("/reply",{text});
     objection=d.objection;show(d);msg("");
     if(known()&&d.reply)adaptReply(text,d);
   }catch(e){msg("Could not get a reply. Check your connection and try again.",true);}
   finally{busy=false;$("go").disabled=false;$("go").textContent="Get reply";}
 }
+
+/* ---- call + outcomes ---- */
+let state="idle",choice=null;
+function setState(st){
+  state=st;
+  document.querySelectorAll(".live").forEach(e=>e.classList.toggle("off",st!=="call"));
+  const b=$("callbtn");b.className="b "+(st==="call"?"end":"go");b.textContent=st==="call"?"End call":"Start call";b.disabled=st==="end";
+  $("cstat").textContent=st==="call"?"Call in progress":st==="end"?"Call ended. Log it below":"No active call";
+  $("logcard").classList.toggle("hide",st!=="end");
+}
+function drawOuts(){
+  const box=$("outs");box.innerHTML="";
+  OUTCOMES.forEach(o=>box.appendChild(mk(o,"b"+(choice===o?" on":""),()=>{choice=choice===o?null:o;$("oth").value="";drawOuts();})));
+}
 async function loadCounts(){
   try{
-    const d=await api("/stats");$("tiles").innerHTML="";
-    OUTCOMES.forEach(o=>{
+    const d=await api("/stats"),oc=d.outcomes||{};$("tiles").innerHTML="";
+    const std=OUTCOMES.reduce((n,o)=>n+(oc[o]||0),0);
+    [...OUTCOMES.map(o=>[o,oc[o]||0]),["Other",(d.total||0)-std],["Total calls",d.total||0]].forEach(([l,v])=>{
       const t=document.createElement("div");t.className="tile";
-      const s=document.createElement("small");s.textContent=o;
-      const b=document.createElement("b");b.textContent=(d.outcomes&&d.outcomes[o])||0;
+      const s=document.createElement("small");s.textContent=l;
+      const b=document.createElement("b");b.textContent=v;
       t.append(s,b);$("tiles").appendChild(t);
     });
   }catch(e){msg("Could not load counts.",true);}
 }
-async function log(o){
+function resetCall(){
+  objection=null;stage="Opening";secs=0;choice=null;$("timer").textContent="00:00";
+  prospect={name:"",company:"",notes:""};["pname","pco","pnotes","said","notes","oth"].forEach(i=>$(i).value="");
+  try{localStorage.removeItem("callcue.notes");}catch(e){}
+  $("sug").innerHTML='<small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p>';
+  setState("idle");drawStages();
+}
+async function save(){
+  const outcome=choice||$("oth").value.trim(),notes=$("notes").value.trim();
+  if(!outcome){msg("Pick an outcome or type one.",true);return;}
+  $("save").disabled=true;
   try{
-    await api("/calls",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({outcome:o,objection})});
-    msg("Logged: "+o);objection=null;stage="Opening";secs=0;$("timer").textContent="00:00";
-    $("said").value="";prospect={name:"",company:"",notes:""};["pname","pco","pnotes"].forEach(i=>$(i).value="");$("sug").innerHTML='<small>Suggested reply</small><p class="h">Call logged. Ready for the next one.</p>';
-    drawStages();loadCounts();
-  }catch(e){msg("Could not save the outcome. Try again.",true);}
+    const d=await post("/calls",{outcome,objection,notes:notes||null});
+    resetCall();loadCounts();
+    msg(notes&&d.notes_saved===false?"Saved, but your notes were not stored. Add the notes column in Supabase.":"Saved: "+outcome,notes&&d.notes_saved===false);
+  }catch(e){msg("Could not save the call. Try again.",true);}
+  finally{$("save").disabled=false;}
 }
+$("callbtn").onclick=()=>{
+  if(state==="idle"){secs=0;$("timer").textContent="00:00";stage="Opening";setState("call");drawStages();}
+  else if(state==="call"){setState("end");drawOuts();$("logcard").scrollIntoView({behavior:"smooth",block:"nearest"});}
+};
+$("oth").addEventListener("input",()=>{if($("oth").value&&choice){choice=null;drawOuts();}});
+$("save").onclick=save;
+$("discard").onclick=()=>{if(confirm("Discard this call without saving?"))resetCall();};
+try{$("notes").value=localStorage.getItem("callcue.notes")||"";}catch(e){}
+$("notes").addEventListener("input",()=>{try{localStorage.setItem("callcue.notes",$("notes").value);}catch(e){}});
 
-OUTCOMES.forEach(o=>$("outs").appendChild(mk(o,"b",()=>log(o))));
+/* ---- wiring ---- */
 $("go").onclick=()=>reply($("said").value);
-let pt;
-function onPerson(){
-  prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};
-  clearTimeout(pt);pt=setTimeout(async()=>{await setSay();prefetch();},800);
-}
-["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",onPerson));
 $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();reply($("said").value);}});
-drawStages();
+["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",()=>{prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};schedule();}));
+$("sname").value=P.name;
+$("sname").addEventListener("input",()=>{P.name=$("sname").value.trim();savePrefs();applyPrefs();schedule();});
+$("gear").onclick=()=>{const p=$("panel"),open=p.classList.toggle("hide")===false;$("gear").setAttribute("aria-expanded",open);};
+$("reset").onclick=()=>{P={...DEF};savePrefs();$("sname").value="";applyPrefs();setSay();};
+applyPrefs();setState("idle");drawStages();
 (async()=>{
   try{
     playbook=await api("/playbook");
