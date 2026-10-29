@@ -1,4 +1,4 @@
-import os, json, requests
+import os, json, random, requests
 from collections import Counter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -169,31 +169,64 @@ class SayIn(BaseModel):
     name: str | None = None
     company: str | None = None
     notes: str | None = None
+    call_notes: str | None = None
+    avoid: list[str] = []
+
+
+STAGE_GUIDE = {
+    "opening": ("Greet them by name, introduce the caller, admit it is a cold call, and give a short "
+                "reason for calling that fits their business. End with a light permission question."),
+    "discovery": ("Ask ONE open question that helps the caller learn how they handle the problem hinted in "
+                  "the notes today and what hurts most. Make it specific to their business, do not state "
+                  "the problem as fact, and do not pitch."),
+    "pitch": ("In one sentence connect a benefit to the problem the prospect described (see what they said "
+              "and the notes). Use only what they said, with no invented features, numbers or results. "
+              "End by asking if a short walkthrough would be useful."),
+    "close": ("Sum up their problem in a few words and propose one specific next step: a 15-minute call "
+              "this week, offering two time options. Use their name."),
+}
+STYLES = ["warm and casual", "direct and brief", "curious and friendly",
+          "confident and professional", "relaxed and conversational"]
+
+
+def groq_chat(messages, temperature=0.8, max_tokens=900):
+    payload = {"model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
+               "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    for extra in ({"reasoning_effort": "low"}, {}):
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                          headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                          json={**payload, **extra}, timeout=20)
+        if r.ok:
+            text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+            if text:
+                return text
+        else:
+            print("GROQ SAY ERROR:", r.status_code, r.text[:200])
+    return None
+
 
 @app.post("/say")
 def say(b: SayIn):
-    facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
-    system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
-              f"'{b.stage}' stage of the call so it fits the PERSON BEING CALLED. "
-              "The name, company and notes describe the person being called, never the caller, "
-              "so the caller must not say they are from that company. "
-              "Keep the caller's own introduction and the intent of the base line unchanged. "
-              "Use only the facts given and never invent details. "
-              "Do not claim to already know the person's situation; ask or hint instead, for example 'I imagine' or 'a lot of clinics tell us'. "
+    facts = (f"Prospect name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. "
+             f"What the caller already knows: {b.notes or 'nothing yet'}. "
+             f"What the prospect said on this call: {b.call_notes or 'nothing yet'}.")
+    guide = STAGE_GUIDE.get(b.stage.lower(), "Write the next natural line the caller can say.")
+    system = ("You write the next line a salesperson says on a live phone call. "
+              "The name, company and notes describe the PERSON BEING CALLED, never the caller, so the "
+              "caller must never say they are from that company. The example line contains the caller's "
+              "own name; keep it exactly as written. Use only the facts given and never invent details, "
+              "numbers or results. Do not claim to already know their situation; ask or hint instead. "
+              f"Stage: {b.stage}. {guide} Tone: {random.choice(STYLES)}. "
               "Write 1 or 2 short sentences that sound natural when spoken. Return only the line.")
+    user = f"{facts}\nExample line (for intent only, rewrite it, do not copy it): {b.base}"
+    if b.avoid:
+        user += "\nDo not reuse the wording of these earlier lines:\n" + "\n".join(f"- {a}" for a in b.avoid[-3:])
     try:
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"},
-            json={"model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
-                  "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": f"{facts}\nBase line: {b.base}"}],
-                  "temperature": 0.4, "max_tokens": 500},
-            timeout=15)
-        r.raise_for_status()
-        line = r.json()["choices"][0]["message"]["content"].strip()
+        line = groq_chat([{"role": "system", "content": system},
+                          {"role": "user", "content": user}])
         return {"line": line or b.base}
-    except Exception:
+    except Exception as e:
+        print("SAY ERROR:", repr(e))
         return {"line": b.base}
 
 

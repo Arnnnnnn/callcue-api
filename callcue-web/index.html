@@ -43,6 +43,9 @@ button{cursor:pointer}
 .say{background:color-mix(in srgb,var(--blue) 16%,var(--card));border-radius:10px;padding:12px 14px;margin-top:12px;color:var(--blue)}
 .say small{display:block;font-size:.75rem;margin-bottom:4px;opacity:.85}
 .say p{margin:0;font-size:1.08rem;font-weight:500}
+.sayhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sayhead small{margin:0!important}
+.b.mini{padding:2px 9px;font-size:.78rem;color:var(--blue);border-color:var(--blue)}
 .sug{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;min-height:90px}
 .sug small{display:block;color:var(--mute);font-size:.75rem;margin-bottom:4px}
 .sug .r{font-size:1.12rem;font-weight:600;margin:0}
@@ -121,7 +124,7 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
       <section class="card live">
         <h2>1. Where are you in the call?</h2>
         <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
-        <div class="say" aria-live="polite"><small>Say next</small><p id="say"></p></div>
+        <div class="say" aria-live="polite"><div class="sayhead"><small>Say next</small><button class="b mini" id="regen" type="button">↻ New line</button></div><p id="say"></p></div>
       </section>
       <section class="card live">
         <h2>Call notes</h2>
@@ -176,7 +179,7 @@ const savePrefs=()=>{try{localStorage.setItem("callcue.prefs",JSON.stringify(P))
 const $=id=>document.getElementById(id);
 let stage="Opening",objection=null,secs=0,busy=false,playbook=[],adaptId=0,sayId=0,pt;
 let prospect={name:"",company:"",notes:""},sayCache={},contact="";
-const known=()=>prospect.name||prospect.company||prospect.notes;
+const known=()=>prospect.name||prospect.company||prospect.notes||$("notes").value.trim();
 const fill=t=>t.replace(/\{me\}/g,P.name||"[your name]").replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
 
 async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
@@ -208,14 +211,19 @@ function applyPrefs(){
 
 /* ---- stage lines ---- */
 function baseFor(st){const row=playbook.find(p=>(p.stage||"").toLowerCase()===st.toLowerCase()&&st!=="Objection");return fill(row?row.reply:SAY[st]);}
-const keyFor=st=>st+"|"+P.name+"|"+JSON.stringify(prospect);
-async function fetchLine(st){
+const keyFor=st=>st+"|"+P.name+"|"+JSON.stringify(prospect)+((st==="Pitch"||st==="Close")?"|"+$("notes").value.trim():"");
+const seen={};
+const remember=(st,l)=>{(seen[st]=seen[st]||[]).push(l);};
+async function fetchLine(st,fresh){
   const base=baseFor(st),key=keyFor(st);
-  if(sayCache[key])return sayCache[key];
-  try{const d=await post("/say",{stage:st.toLowerCase(),base,name:prospect.name,company:prospect.company,notes:prospect.notes});sayCache[key]=d.line;return d.line;}
-  catch(e){return base;}
+  if(!fresh&&sayCache[key])return sayCache[key];
+  try{
+    const d=await post("/say",{stage:st.toLowerCase(),base,name:prospect.name,company:prospect.company,notes:prospect.notes,call_notes:$("notes").value.trim(),avoid:(seen[st]||[]).slice(-3)});
+    sayCache[key]=d.line;remember(st,d.line);return d.line;
+  }catch(e){return base;}
 }
 async function setSay(){
+  $("regen").classList.toggle("hide",stage==="Objection");
   if(stage==="Objection"||!known()){$("say").textContent=baseFor(stage);return;}
   const id=++sayId;
   if(!sayCache[keyFor(stage)])$("say").textContent="Personalising…";
@@ -224,7 +232,7 @@ async function setSay(){
 }
 async function prefetch(){
   const snap=JSON.stringify(prospect);
-  for(const st of ["Opening","Discovery","Pitch","Close"]){if(JSON.stringify(prospect)!==snap)return;await fetchLine(st);}
+  for(const st of ["Opening","Discovery"]){if(JSON.stringify(prospect)!==snap)return;await fetchLine(st);}
 }
 function schedule(){clearTimeout(pt);pt=setTimeout(async()=>{await setSay();prefetch();},800);}
 function drawStages(){
@@ -325,7 +333,7 @@ async function save(){
   finally{$("save").disabled=false;}
 }
 $("callbtn").onclick=()=>{
-  if(state==="idle"){secs=0;$("timer").textContent="00:00";stage="Opening";setState("call");drawStages();}
+  if(state==="idle"){secs=0;$("timer").textContent="00:00";stage="Opening";sayCache={};setState("call");drawStages();}
   else if(state==="call"){setState("end");drawOuts();$("logcard").scrollIntoView({behavior:"smooth",block:"nearest"});}
 };
 $("oth").addEventListener("input",()=>{if($("oth").value&&choice){choice=null;drawOuts();}});
@@ -335,6 +343,15 @@ try{$("notes").value=localStorage.getItem("callcue.notes")||"";}catch(e){}
 $("notes").addEventListener("input",()=>{try{localStorage.setItem("callcue.notes",$("notes").value);}catch(e){}});
 
 /* ---- wiring ---- */
+$("regen").onclick=async()=>{
+  if(stage==="Objection")return;
+  const cur=$("say").textContent;
+  if(cur&&!cur.endsWith("…")&&!(seen[stage]||[]).includes(cur))remember(stage,cur);
+  const id=++sayId;$("say").textContent="Writing a new line…";
+  const line=await fetchLine(stage,true);
+  if(id===sayId)$("say").textContent=line;
+};
+$("notes").addEventListener("change",()=>{if(stage==="Pitch"||stage==="Close")setSay();});
 $("go").onclick=()=>reply($("said").value);
 $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();reply($("said").value);}});
 ["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",()=>{prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};schedule();}));
