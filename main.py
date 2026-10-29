@@ -30,6 +30,18 @@ KEYWORDS = {
                       "budget", "afford", "cheap", "too much"],
     "Call me later": ["later", "busy", "not a good time", "call back",
                       "call me next", "next week", "in a meeting"],
+    "Send me an email": ["send me", "send details", "email me", "mail me",
+                         "send info", "brochure", "details", "email"],
+    "Call me back later": ["later", "call back", "call me next", "next week",
+                           "tomorrow", "not now"],
+    "Already have a vendor": ["already have", "current vendor", "existing",
+                              "we use", "happy with", "tried this"],
+    "I need to ask my boss": ["boss", "manager", "partner", "owner",
+                              "decision maker", "not my call", "team"],
+    "How did you get my number": ["my number", "where did you get",
+                                  "who gave you", "how did you get"],
+    "I am busy right now": ["busy", "in a meeting", "driving", "no time",
+                            "not a good time", "with a patient"],
 }
 
 
@@ -76,7 +88,7 @@ def reply(s: Said):
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {GROQ_KEY}"},
             json={
-            	"model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
+                "model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
                 "messages": [{"role": "user", "content": prompt}],
                 "response_format": {"type": "json_object"},
                 "temperature": 0.3,
@@ -158,3 +170,48 @@ def say(b: SayIn):
         return {"line": line or b.base}
     except Exception:
         return {"line": b.base}
+
+
+class AdaptIn(BaseModel):
+    said: str
+    reply: str
+    follow_up: str | None = None
+    name: str | None = None
+    company: str | None = None
+    notes: str | None = None
+
+
+@app.post("/adapt")
+def adapt(b: AdaptIn):
+    facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
+    system = ("You help a salesperson on a live phone call. The prospect just pushed back. "
+              "Rewrite the approved reply and the follow-up question so they fit the PERSON BEING CALLED. "
+              "The name, company and notes describe the prospect, never the caller. "
+              "Keep the intent of the approved reply. Use only the facts given, and never invent "
+              "numbers, prices, results or claims. Do not claim to already know their situation; "
+              "hint or ask instead, for example 'I imagine'. "
+              "Reply in at most 2 short sentences that sound natural when spoken, and the follow-up "
+              "must be one short question. Output exactly two lines and nothing else:\n"
+              "REPLY: <text>\nASK: <text>")
+    user = (f"{facts}\nProspect said: {b.said}\n"
+            f"Approved reply: {b.reply}\nApproved follow-up: {b.follow_up or ''}")
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+            json={"model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
+                  "messages": [{"role": "system", "content": system},
+                               {"role": "user", "content": user}],
+                  "temperature": 0.4, "max_tokens": 600},
+            timeout=15)
+        r.raise_for_status()
+        text = r.json()["choices"][0]["message"]["content"]
+        reply, ask = b.reply, b.follow_up
+        for line in text.splitlines():
+            if line.upper().startswith("REPLY:"):
+                reply = line.split(":", 1)[1].strip() or reply
+            elif line.upper().startswith("ASK:"):
+                ask = line.split(":", 1)[1].strip() or ask
+        return {"reply": reply, "follow_up": ask}
+    except Exception:
+        return {"reply": b.reply, "follow_up": b.follow_up}

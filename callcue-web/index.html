@@ -142,12 +142,21 @@ function show(d){
   const f=document.createElement("p");f.className="f";f.textContent="Then ask: "+d.follow_up;
   s.append(a,r,f);
 }
-async function reply(text){
+let adaptId=0;
+async function adaptReply(said,d){
+  const my=++adaptId;
+  try{
+    const a=await api("/adapt",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({said,reply:d.reply,follow_up:d.follow_up||"",name:prospect.name,company:prospect.company,notes:prospect.notes})});
+    if(my===adaptId&&a.reply)show({objection:d.objection,reply:a.reply,follow_up:a.follow_up||d.follow_up});
+  }catch(e){}
+}
+async function reply(text,row){
   text=text.trim();if(!text||busy)return;
   busy=true;$("go").disabled=true;$("go").textContent="Thinking…";
   try{
-    const d=await api("/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+    const d=row?{objection:row.objection,reply:row.reply,follow_up:row.follow_up||""}:await api("/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
     objection=d.objection;show(d);msg("");
+    if(known()&&d.reply)adaptReply(text,d);
   }catch(e){msg("Could not get a reply. Check your connection and try again.",true);}
   finally{busy=false;$("go").disabled=false;$("go").textContent="Get reply";}
 }
@@ -184,7 +193,7 @@ drawStages();
 (async()=>{
   try{
     playbook=await api("/playbook");
-    playbook.filter(p=>p.stage==="objection").forEach(p=>$("chips").appendChild(mk(p.objection,"b",()=>{$("said").value=p.objection;reply(p.objection);})));
+    playbook.filter(p=>p.stage==="objection").forEach(p=>$("chips").appendChild(mk(p.objection,"b",()=>{$("said").value=p.objection;reply(p.objection,p);})));
     drawStages();msg("");
   }catch(e){msg("Server is not responding. Wait a minute and reload.",true);}
   loadCounts();
