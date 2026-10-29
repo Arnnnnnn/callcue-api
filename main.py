@@ -1,6 +1,6 @@
 import os, json, random, requests
 from collections import Counter
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -20,6 +20,16 @@ if not SB_KEY.startswith("sb_"):
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
+
+def current_user(authorization: str | None = Header(default=None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Log in required")
+    r = requests.get(f"{SB_URL}/auth/v1/user", timeout=10,
+                     headers={"apikey": SB_KEY, "Authorization": authorization})
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    return r.json()
+
 
 KEYWORDS = {
     "Not interested": ["not interested", "no thanks", "no thank", "don't need",
@@ -76,7 +86,7 @@ def playbook():
 
 
 @app.post("/reply")
-def reply(s: Said):
+def reply(s: Said, user=Depends(current_user)):
     rows = [p for p in get_playbook() if p["stage"] == "objection"]
     menu = "\n".join(f'- {p["objection"]}: {p["reply"]}' for p in rows)
     prompt = (
@@ -124,9 +134,9 @@ def reply(s: Said):
 
 
 @app.post("/calls")
-def log_call(o: Outcome):
+def log_call(o: Outcome, user=Depends(current_user)):
     url = f"{SB_URL}/rest/v1/calls"
-    body = {"outcome": o.outcome, "objection": o.objection}
+    body = {"outcome": o.outcome, "objection": o.objection, "user_id": user["id"]}
     notes = {"notes": o.notes} if o.notes else {}
     who = {k: v for k, v in {"prospect_name": o.prospect_name,
                               "prospect_company": o.prospect_company,
@@ -145,16 +155,16 @@ def log_call(o: Outcome):
 
 
 @app.get("/calls")
-def list_calls(limit: int = 300):
-    r = requests.get(f"{SB_URL}/rest/v1/calls?select=*&order=created_at.desc&limit={min(limit, 500)}",
+def list_calls(limit: int = 300, user=Depends(current_user)):
+    r = requests.get(f"{SB_URL}/rest/v1/calls?select=*&user_id=eq.{user['id']}&order=created_at.desc&limit={min(limit, 500)}",
                      headers=H, timeout=15)
     r.raise_for_status()
     return r.json()
 
 
 @app.get("/stats")
-def stats():
-    r = requests.get(f"{SB_URL}/rest/v1/calls?select=outcome,objection",
+def stats(user=Depends(current_user)):
+    r = requests.get(f"{SB_URL}/rest/v1/calls?select=outcome,objection&user_id=eq.{user['id']}",
                      headers=H, timeout=15)
     r.raise_for_status()
     rows = r.json()
@@ -207,7 +217,7 @@ def groq_chat(messages, temperature=0.8, max_tokens=900):
 
 
 @app.post("/say")
-def say(b: SayIn):
+def say(b: SayIn, user=Depends(current_user)):
     facts = (f"Prospect name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. "
              f"What the caller already knows: {b.notes or 'nothing yet'}. "
              f"What the prospect said on this call: {b.call_notes or 'nothing yet'}.")
@@ -263,7 +273,7 @@ OBJ_HINTS = [
 
 
 @app.post("/adapt")
-def adapt(b: AdaptIn):
+def adapt(b: AdaptIn, user=Depends(current_user)):
     facts = (f"Prospect name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. "
              f"What the caller already knows: {b.notes or 'nothing'}. "
              f"What the prospect said earlier on this call: {b.call_notes or 'nothing'}.")

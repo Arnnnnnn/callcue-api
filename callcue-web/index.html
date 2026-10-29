@@ -57,6 +57,9 @@ button{cursor:pointer}
 .tile b{font-size:1.4rem;font-weight:600}
 .msg{font-size:.8rem;color:var(--mute);min-height:18px;margin:12px 0 0}
 .msg.err{color:var(--bad)}
+.gate{max-width:380px;margin:12vh auto 0;text-align:center}
+.gate h1{font-size:1.4rem;margin:0 0 6px;display:flex;justify-content:center;align-items:center;gap:8px}
+.gate p{color:var(--mute);margin:0 0 16px}
 .panel{margin-bottom:var(--gap)}
 button.tile{text-align:left;border:1px solid transparent;cursor:pointer;width:100%}
 button.tile:hover{border-color:var(--line)}
@@ -87,10 +90,16 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
 </style>
 </head>
 <body>
-<div class="wrap">
+<section class="card gate hide" id="gate">
+  <h1><span class="dot"></span>CallCue</h1>
+  <p>Sign in to keep your calls and history to yourself.</p>
+  <button class="b go" id="google" style="width:100%;padding:11px">Continue with Google</button>
+  <p class="msg" id="gmsg"></p>
+</section>
+<div class="wrap hide" id="app">
   <header class="bar">
     <div><h1><span class="dot"></span>CallCue</h1><p id="hello"></p></div>
-    <div class="right"><button class="b" id="gear" aria-expanded="false">Customise</button></div>
+    <div class="right"><button class="b" id="gear" aria-expanded="false">Customise</button><button class="b" id="signout">Sign out</button></div>
   </header>
 
   <section class="card panel hide" id="panel" aria-label="Customise">
@@ -158,16 +167,39 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const API="https://callcue-api.onrender.com";
+const SB_URL="https://bulrjxpftuguatrjxoha.supabase.co",SB_KEY="sb_publishable_p7i7w0HeN258ZwI--ATl2g_Fhft44vq";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let token=null,me="";
 const STAGES=["Opening","Discovery","Pitch","Objection","Close"];
 const OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
 const SAY={
- Opening:"Hi {name}, this is {me}. I know I am calling out of the blue. Do you have 30 seconds?",
- Discovery:"How does {company} handle this today, and what is the biggest headache with it?",
- Pitch:"Based on what you said, we can help {company} fix that without adding work for your team. Would a short walkthrough be useful?",
+ Opening:[
+  "Hi {name}, this is {me}. I know I am calling out of the blue. Do you have 30 seconds?",
+  "Hello {name}, {me} here. I will be quick. Is now an okay time for a short call?",
+  "Hi {name}, it is {me}. I realise you were not expecting my call. Can I take 30 seconds to say why I rang?",
+  "Good day {name}, this is {me}. Sorry for the cold call. Do you have a minute?",
+  "Hi {name}, {me} calling. I will not take much of your time. Is this a bad moment?",
+  "Hello {name}, my name is {me}. I am reaching out to a few businesses like {company}. Do you have a quick moment?"],
+ Discovery:[
+  "How does {company} handle this today, and what is the biggest headache with it?",
+  "Walk me through how this works for you right now. What takes the most time?",
+  "What is the one thing about this that you wish worked better?",
+  "If you could fix one thing about how {company} does this, what would it be?",
+  "How often does this come up for you, and what happens when it goes wrong?"],
+ Pitch:[
+  "Based on what you said, we can help {company} fix that without adding work for your team. Would a short walkthrough be useful?",
+  "That is exactly the kind of problem we help with. Can I show you how it would work for {company} in ten minutes?",
+  "From what you described, there is a simple way to take that off your plate. Would a quick demo make sense?",
+  "We help teams deal with exactly that. Would it be worth a short look to see if it fits {company}?"],
  Objection:"Tap what they said, or type it.",
- Close:"Can we book 15 minutes this week? Would Thursday or Friday suit you better?"
+ Close:[
+  "Can we book 15 minutes this week? Would Thursday or Friday suit you better?",
+  "Let us set up a short call to go through it properly. Does tomorrow or the day after work for you?",
+  "I would like to show you this properly. Is a 15-minute slot early next week okay?",
+  "Shall I send a calendar invite for a quick 15 minutes? What day suits you best?"]
 };
 const ACCENTS=["#4da3ff","#3ddc84","#ff9f43","#c77dff","#ff6b81"];
 const THEMES={dark:"Dark",light:"Light",warm:"Warm"};
@@ -180,9 +212,10 @@ const $=id=>document.getElementById(id);
 let stage="Opening",objection=null,secs=0,busy=false,playbook=[],adaptId=0,sayId=0,pt;
 let prospect={name:"",company:"",notes:""},sayCache={},contact="";
 const known=()=>prospect.name||prospect.company||prospect.notes||$("notes").value.trim();
-const fill=t=>t.replace(/\{me\}/g,P.name||"[your name]").replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
+const who=()=>P.name||me;
+const fill=t=>t.replace(/\{me\}/g,who()||"[your name]").replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
 
-async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
+async function api(p,o={}){o.headers={...(o.headers||{}),...(token?{Authorization:"Bearer "+token}:{})};const r=await fetch(API+p,o);if(r.status===401){showGate("Session expired. Please sign in again.");throw new Error("401");}if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
 function msg(t,err){const m=$("msg");m.textContent=t;m.className="msg"+(err?" err":"");}
 function mk(txt,cls,fn){const b=document.createElement("button");b.className=cls;b.textContent=txt;b.onclick=fn;return b;}
 const post=(p,body)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -205,13 +238,22 @@ function applyPrefs(){
   document.body.classList.toggle("compact",!!P.compact);
   $("timer").classList.toggle("hide",!P.timer);
   const hr=new Date().getHours(),g=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
-  $("hello").textContent=g+(P.name?", "+P.name:"")+". Ready for the next call?";
+  $("hello").textContent=g+(who()?", "+who():"")+". Ready for the next call?";
   drawControls();
 }
 
 /* ---- stage lines ---- */
-function baseFor(st){const row=playbook.find(p=>(p.stage||"").toLowerCase()===st.toLowerCase()&&st!=="Objection");return fill(row?row.reply:SAY[st]);}
-const keyFor=st=>st+"|"+P.name+"|"+JSON.stringify(prospect)+((st==="Pitch"||st==="Close")?"|"+$("notes").value.trim():"");
+const pick={};
+function lines(st){
+  if(st==="Objection")return [SAY.Objection];
+  const rows=playbook.filter(p=>(p.stage||"").toLowerCase()===st.toLowerCase()).map(p=>p.reply).filter(Boolean);
+  return rows.length?rows:SAY[st];
+}
+function reroll(){
+  ["Opening","Discovery","Pitch","Close"].forEach(s=>{const n=lines(s).length;let i;do{i=Math.floor(Math.random()*n);}while(n>1&&i===pick[s]);pick[s]=i;});
+}
+function baseFor(st){const a=lines(st);return fill(a[(pick[st]||0)%a.length]);}
+const keyFor=st=>st+"|"+who()+"|"+JSON.stringify(prospect)+((st==="Pitch"||st==="Close")?"|"+$("notes").value.trim():"");
 const seen={};
 const remember=(st,l)=>{(seen[st]=seen[st]||[]).push(l);};
 async function fetchLine(st,fresh){
@@ -315,7 +357,7 @@ async function loadCounts(){
   catch(e){msg("Could not load call history.",true);}
 }
 function resetCall(){
-  objection=null;stage="Opening";secs=0;choice=null;$("timer").textContent="00:00";
+  objection=null;stage="Opening";secs=0;choice=null;sayCache={};reroll();$("timer").textContent="00:00";
   prospect={name:"",company:"",notes:""};["pname","pco","pcontact","pnotes","said","notes","oth"].forEach(i=>$(i).value="");contact="";
   try{localStorage.removeItem("callcue.notes");}catch(e){}
   $("sug").innerHTML='<small>Suggested reply</small><p class="h">Tap an objection or type what they said.</p>';
@@ -348,7 +390,8 @@ $("regen").onclick=async()=>{
   const cur=$("say").textContent;
   if(cur&&!cur.endsWith("…")&&!(seen[stage]||[]).includes(cur))remember(stage,cur);
   const id=++sayId;$("say").textContent="Writing a new line…";
-  const line=await fetchLine(stage,true);
+  let line=await fetchLine(stage,true);
+  if(line===cur){const n=lines(stage).length;pick[stage]=((pick[stage]||0)+1)%n;line=baseFor(stage);}
   if(id===sayId)$("say").textContent=line;
 };
 $("notes").addEventListener("change",()=>{if(stage==="Pitch"||stage==="Close")setSay();});
@@ -360,15 +403,33 @@ $("sname").value=P.name;
 $("sname").addEventListener("input",()=>{P.name=$("sname").value.trim();savePrefs();applyPrefs();schedule();});
 $("gear").onclick=()=>{const p=$("panel"),open=p.classList.toggle("hide")===false;$("gear").setAttribute("aria-expanded",open);};
 $("reset").onclick=()=>{P={...DEF};savePrefs();$("sname").value="";applyPrefs();setSay();};
-applyPrefs();setState("idle");drawStages();
-(async()=>{
+applyPrefs();setState("idle");reroll();drawStages();
+async function start(){
+  $("chips").innerHTML="";
   try{
-    playbook=await api("/playbook");
+    playbook=await api("/playbook");reroll();
     playbook.filter(p=>p.stage==="objection").forEach(p=>$("chips").appendChild(mk(p.objection,"b",()=>{$("said").value=p.objection;reply(p.objection,p);})));
     drawStages();msg("");
   }catch(e){msg("Server is not responding. Wait a minute and reload.",true);}
   loadCounts();
-})();
+}
+
+function showGate(t){$("app").classList.add("hide");$("gate").classList.remove("hide");$("gmsg").textContent=t||"";}
+function enter(session){
+  token=session.access_token;const u=session.user,md=u.user_metadata||{};
+  me=md.full_name||md.name||(u.email||"").split("@")[0];
+  $("sname").placeholder=me||"Your name";
+  $("gate").classList.add("hide");$("app").classList.remove("hide");
+  sayCache={};applyPrefs();reroll();drawStages();start();
+}
+$("google").onclick=async()=>{
+  $("gmsg").textContent="Opening Google…";
+  const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin}});
+  if(error)$("gmsg").textContent=error.message;
+};
+$("signout").onclick=async()=>{await sb.auth.signOut();token=null;location.reload();};
+sb.auth.onAuthStateChange((_e,ss)=>{if(ss)token=ss.access_token;});
+sb.auth.getSession().then(({data})=>{if(data.session)enter(data.session);else showGate();});
 </script>
 </body>
 </html>
