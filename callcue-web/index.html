@@ -55,6 +55,15 @@ button{cursor:pointer}
 .msg{font-size:.8rem;color:var(--mute);min-height:18px;margin:12px 0 0}
 .msg.err{color:var(--bad)}
 .panel{margin-bottom:var(--gap)}
+button.tile{text-align:left;border:1px solid transparent;cursor:pointer;width:100%}
+button.tile:hover{border-color:var(--line)}
+.tile.on{border-color:var(--blue)!important}
+.hint{color:var(--mute);font-size:.8rem;margin:0 0 10px}
+.hist{margin-top:12px;max-height:380px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.hrow{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.hrow .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.hrow small{color:var(--mute);font-weight:400;font-size:.75rem}
+.hrow p{margin:6px 0 0;font-size:.88rem;white-space:pre-wrap}
 .callbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:var(--gap);padding:12px var(--pad)}
 .callbar b{margin-right:12px;font-weight:600}
 .b.go{background:var(--blue);border-color:var(--blue);color:#101010}
@@ -133,8 +142,10 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
         <div class="inrow"><button class="b go" id="save">Save call</button><button class="b" id="discard">Discard</button></div>
       </section>
       <section class="card">
-        <h2>Your calls</h2>
+        <h2>Call history</h2>
+        <p class="hint">Tap a count to see those calls.</p>
         <div class="tiles" id="tiles"></div>
+        <div class="hist hide" id="hist"></div>
         <p class="msg" id="msg">Connecting to the server. The first load can take up to a minute.</p>
       </section>
     </div>
@@ -259,17 +270,35 @@ function drawOuts(){
   const box=$("outs");box.innerHTML="";
   OUTCOMES.forEach(o=>box.appendChild(mk(o,"b"+(choice===o?" on":""),()=>{choice=choice===o?null:o;$("oth").value="";drawOuts();})));
 }
+let calls=[],histKey=null;
+const isStd=o=>OUTCOMES.includes(o);
+const inGroup=(c,k)=>k==="Total calls"?true:k==="Other"?!isStd(c.outcome):c.outcome===k;
+function drawHistory(){
+  const box=$("tiles");box.innerHTML="";
+  [...OUTCOMES,"Other","Total calls"].forEach(k=>{
+    const t=document.createElement("button");t.className="tile"+(histKey===k?" on":"");t.setAttribute("aria-expanded",histKey===k);
+    const s=document.createElement("small");s.textContent=k;
+    const b=document.createElement("b");b.textContent=calls.filter(c=>inGroup(c,k)).length;
+    t.append(s,b);t.onclick=()=>{histKey=histKey===k?null:k;drawHistory();};box.appendChild(t);
+  });
+  const h=$("hist");h.innerHTML="";h.classList.toggle("hide",!histKey);
+  if(!histKey)return;
+  const rows=calls.filter(c=>inGroup(c,histKey));
+  if(!rows.length){const p=document.createElement("p");p.className="hint";p.textContent="No calls here yet.";h.appendChild(p);return;}
+  rows.forEach(c=>{
+    const d=document.createElement("div");d.className="hrow";
+    const t=document.createElement("div");t.className="t";
+    const o=document.createElement("span");o.textContent=c.outcome;
+    const w=document.createElement("small");w.textContent=c.created_at?new Date(c.created_at).toLocaleString([],{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}):"";
+    t.append(o,w);d.appendChild(t);
+    if(c.objection){const p=document.createElement("p");p.textContent="Objection: "+c.objection;d.appendChild(p);}
+    if(c.notes){const p=document.createElement("p");p.textContent=c.notes;d.appendChild(p);}
+    h.appendChild(d);
+  });
+}
 async function loadCounts(){
-  try{
-    const d=await api("/stats"),oc=d.outcomes||{};$("tiles").innerHTML="";
-    const std=OUTCOMES.reduce((n,o)=>n+(oc[o]||0),0);
-    [...OUTCOMES.map(o=>[o,oc[o]||0]),["Other",(d.total||0)-std],["Total calls",d.total||0]].forEach(([l,v])=>{
-      const t=document.createElement("div");t.className="tile";
-      const s=document.createElement("small");s.textContent=l;
-      const b=document.createElement("b");b.textContent=v;
-      t.append(s,b);$("tiles").appendChild(t);
-    });
-  }catch(e){msg("Could not load counts.",true);}
+  try{calls=await api("/calls");drawHistory();}
+  catch(e){msg("Could not load call history.",true);}
 }
 function resetCall(){
   objection=null;stage="Opening";secs=0;choice=null;$("timer").textContent="00:00";

@@ -134,6 +134,14 @@ def log_call(o: Outcome):
     return {**r.json()[0], "notes_saved": notes_saved if o.notes else True}
 
 
+@app.get("/calls")
+def list_calls(limit: int = 300):
+    r = requests.get(f"{SB_URL}/rest/v1/calls?select=*&order=created_at.desc&limit={min(limit, 500)}",
+                     headers=H, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
 @app.get("/stats")
 def stats():
     r = requests.get(f"{SB_URL}/rest/v1/calls?select=outcome,objection",
