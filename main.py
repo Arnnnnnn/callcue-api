@@ -136,7 +136,7 @@ class SayIn(BaseModel):
 @app.post("/say")
 def say(b: SayIn):
     facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
-        system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
+    system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
               f"'{b.stage}' stage of the call so it fits the PERSON BEING CALLED. "
               "The name, company and notes describe the person being called, never the caller, "
               "so the caller must not say they are from that company. "
