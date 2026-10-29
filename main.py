@@ -125,3 +125,32 @@ def stats():
         "outcomes": dict(Counter(x["outcome"] for x in rows)),
         "objections": dict(Counter(x["objection"] for x in rows if x["objection"])),
     }
+
+class SayIn(BaseModel):
+    stage: str
+    base: str
+    name: str | None = None
+    company: str | None = None
+    notes: str | None = None
+
+@app.post("/say")
+def say(b: SayIn):
+    facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
+    system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
+              f"'{b.stage}' stage of the call so it fits this person. Use only the facts given, "
+              "never invent details, keep the same intent, and write 1 or 2 short sentences "
+              "that sound natural when spoken. Return only the line.")
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"},
+            json={"model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+                  "messages": [{"role": "system", "content": system},
+                               {"role": "user", "content": f"{facts}\nBase line: {b.base}"}],
+                  "temperature": 0.4, "max_tokens": 500},
+            timeout=15)
+        r.raise_for_status()
+        line = r.json()["choices"][0]["message"]["content"].strip()
+        return {"line": line or b.base}
+    except Exception:
+        return {"line": b.base}

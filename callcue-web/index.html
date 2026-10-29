@@ -42,12 +42,25 @@ button{cursor:pointer}
 .msg{font-size:13px;color:var(--mute);min-height:18px;margin:10px 0 0}
 .msg.err{color:var(--bad)}
 .sep{margin-top:18px;color:var(--mute);font-size:13px}
+.pf{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pf input,.inrow input{background:var(--card)}
+.pf input{min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}
+.pf input::placeholder{color:#777}
 @media(max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <main class="card">
   <div class="top"><h1><span class="dot"></span>Call in progress</h1><span class="timer" id="timer">00:00</span></div>
+
+  <div class="lbl">0. Who are you calling? (optional, lines update as you type)</div>
+  <div class="pf">
+    <input id="pname" type="text" placeholder="Name" autocomplete="off">
+    <input id="pco" type="text" placeholder="Company or business" autocomplete="off">
+  </div>
+  <div class="inrow">
+    <input id="pnotes" type="text" placeholder="What you know: industry, size, pain point" autocomplete="off">
+  </div>
 
   <div class="lbl">1. Where are you in the call?</div>
   <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
@@ -75,7 +88,7 @@ const STAGES=["Opening","Discovery","Pitch","Objection","Close"];
 const OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
 /* Fallback lines. Add playbook rows with stage = opening / discovery / pitch / close to override them from Supabase. */
 const SAY={
- Opening:"Hi, this is Aryan from DeepThought. Do you have 30 seconds?",
+ Opening:"Hi {name}, this is Aryan. Do you have 30 seconds?",
  Discovery:"How do you handle this today, and what is the biggest headache with it?",
  Pitch:"Based on that, here is how we would fix it in one sentence. Does that sound useful?",
  Objection:"Tap what they said below, or type it.",
@@ -83,6 +96,29 @@ const SAY={
 };
 const $=id=>document.getElementById(id);
 let stage="Opening",objection=null,secs=0,busy=false,playbook=[];
+let prospect={name:"",company:"",notes:""},sayCache={},sayId=0;
+const fill=t=>t.replace(/\{name\}/g,prospect.name||"there").replace(/\{company\}/g,prospect.company||"your company");
+function baseFor(st){const row=playbook.find(p=>(p.stage||"").toLowerCase()===st.toLowerCase()&&st!=="Objection");return fill(row?row.reply:SAY[st]);}
+const known=()=>prospect.name||prospect.company||prospect.notes;
+async function fetchLine(st){
+  const base=baseFor(st),key=st+"|"+JSON.stringify(prospect);
+  if(sayCache[key])return sayCache[key];
+  try{
+    const d=await api("/say",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({stage:st.toLowerCase(),base,name:prospect.name,company:prospect.company,notes:prospect.notes})});
+    sayCache[key]=d.line;return d.line;
+  }catch(e){return base;}
+}
+async function setSay(){
+  if(stage==="Objection"||!known()){$("say").textContent=baseFor(stage);return;}
+  const id=++sayId,key=stage+"|"+JSON.stringify(prospect);
+  if(!sayCache[key])$("say").textContent="Personalising…";
+  const line=await fetchLine(stage);
+  if(id===sayId)$("say").textContent=line;
+}
+async function prefetch(){
+  const snap=JSON.stringify(prospect);
+  for(const st of ["Opening","Discovery","Pitch","Close"]){if(JSON.stringify(prospect)!==snap)return;await fetchLine(st);}
+}
 
 async function api(p,o){const r=await fetch(API+p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json();}
 function msg(t,err){const m=$("msg");m.textContent=t;m.className="msg"+(err?" err":"");}
@@ -94,8 +130,7 @@ function drawStages(){
     const b=mk((i+1)+" "+s,"b"+(s===stage?" on":""),()=>{stage=s;drawStages();});
     b.setAttribute("aria-pressed",s===stage);box.appendChild(b);
   });
-  const row=playbook.find(p=>(p.stage||"").toLowerCase()===stage.toLowerCase()&&stage!=="Objection");
-  $("say").textContent=row?row.reply:SAY[stage];
+  setSay();
 }
 function tick(){secs++;$("timer").textContent=String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0");}
 setInterval(tick,1000);
@@ -131,13 +166,19 @@ async function log(o){
   try{
     await api("/calls",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({outcome:o,objection})});
     msg("Logged: "+o);objection=null;stage="Opening";secs=0;$("timer").textContent="00:00";
-    $("said").value="";$("sug").innerHTML='<small>Suggested reply</small><p class="h">Call logged. Ready for the next one.</p>';
+    $("said").value="";prospect={name:"",company:"",notes:""};["pname","pco","pnotes"].forEach(i=>$(i).value="");$("sug").innerHTML='<small>Suggested reply</small><p class="h">Call logged. Ready for the next one.</p>';
     drawStages();loadCounts();
   }catch(e){msg("Could not save the outcome. Try again.",true);}
 }
 
 OUTCOMES.forEach(o=>$("outs").appendChild(mk(o,"b",()=>log(o))));
 $("go").onclick=()=>reply($("said").value);
+let pt;
+function onPerson(){
+  prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};
+  clearTimeout(pt);pt=setTimeout(async()=>{await setSay();prefetch();},800);
+}
+["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",onPerson));
 $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();reply($("said").value);}});
 drawStages();
 (async()=>{
