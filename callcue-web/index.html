@@ -253,7 +253,7 @@ function show(d){
 async function adaptReply(said,d){
   const my=++adaptId;
   try{
-    const a=await post("/adapt",{said,reply:d.reply,follow_up:d.follow_up||"",name:prospect.name,company:prospect.company,notes:prospect.notes});
+    const a=await post("/adapt",{said,reply:d.reply,follow_up:d.follow_up||"",objection:d.objection,name:prospect.name,company:prospect.company,notes:prospect.notes,call_notes:$("notes").value.trim()});
     if(my===adaptId&&a.reply)show({objection:d.objection,reply:a.reply,follow_up:a.follow_up||d.follow_up});
   }catch(e){}
 }
