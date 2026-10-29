@@ -136,9 +136,12 @@ class SayIn(BaseModel):
 @app.post("/say")
 def say(b: SayIn):
     facts = f"Name: {b.name or 'unknown'}. Company: {b.company or 'unknown'}. Notes: {b.notes or 'none'}."
-    system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
-              f"'{b.stage}' stage of the call so it fits this person. Use only the facts given, "
-              "never invent details, and keep the same intent. "
+        system = ("You help a salesperson on a live phone call. Rewrite the base line for the "
+              f"'{b.stage}' stage of the call so it fits the PERSON BEING CALLED. "
+              "The name, company and notes describe the person being called, never the caller, "
+              "so the caller must not say they are from that company. "
+              "Keep the caller's own introduction and the intent of the base line unchanged. "
+              "Use only the facts given and never invent details. "
               "Do not claim to already know the person's situation; ask or hint instead, for example 'I imagine' or 'a lot of clinics tell us'. "
               "Write 1 or 2 short sentences that sound natural when spoken. Return only the line.")
     try:
