@@ -73,6 +73,12 @@ class Outcome(BaseModel):
     prospect_name: str | None = None
     prospect_company: str | None = None
     prospect_contact: str | None = None
+    prospect_role: str | None = None
+    stage_reached: int | None = None
+    taps: dict | None = None
+    words: dict | None = None
+    next_step: str | None = None
+    duration_seconds: int | None = None
 
 
 @app.get("/")
@@ -136,16 +142,14 @@ def reply(s: Said, user=Depends(current_user)):
 @app.post("/calls")
 def log_call(o: Outcome, user=Depends(current_user)):
     url = f"{SB_URL}/rest/v1/calls"
-    body = {"outcome": o.outcome, "objection": o.objection, "user_id": user["id"]}
-    notes = {"notes": o.notes} if o.notes else {}
-    who = {k: v for k, v in {"prospect_name": o.prospect_name,
-                              "prospect_company": o.prospect_company,
-                              "prospect_contact": o.prospect_contact}.items() if v}
-    attempts = [{**body, **notes, **who}]
-    if who and notes:
-        attempts.append({**body, **notes})
-    if who or notes:
-        attempts.append(body)
+    core = {"outcome": o.outcome, "objection": o.objection, "user_id": user["id"]}
+    for k in ("prospect_name", "prospect_company", "prospect_contact"):
+        if getattr(o, k):
+            core[k] = getattr(o, k)
+    extra = {k: getattr(o, k) for k in ("notes", "prospect_role", "stage_reached", "taps",
+                                        "words", "next_step", "duration_seconds")
+             if getattr(o, k) not in (None, "", {})}
+    attempts = [{**core, **extra}, core] if extra else [core]
     r = None
     for i, payload in enumerate(attempts):
         r = requests.post(url, headers=H, timeout=15, json=payload)
