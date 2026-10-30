@@ -1,4 +1,6 @@
-# CallCue
+# CallCue™
+
+© 2026 Aryan Khanna. Open source under the [MIT License](LICENSE).
 
 CallCue is a live cold-call assistant for salespeople. While you are on a call it shows what to say at each stage, suggests calm, short replies to objections, and logs how every call went so you can see which objections come up most. The whole page can be rearranged to fit the way you work.
 
@@ -130,3 +132,11 @@ Adjust this to match your actual folders.
 ## Notes
 
 - Keep API keys in environment variables and out of the repo. The Supabase publishable key in `index.html` is meant for the browser, but the Groq key and any Supabase secret key must stay on the backend.
+
+## License
+
+CallCue is open source under the [MIT License](LICENSE). © 2026 [Aryan Khanna](https://github.com/Arnnnnnn/).
+
+You are free to use, copy, modify and distribute the code, as long as the copyright notice and license text are kept in copies. The software is provided as is, with no warranty.
+
+The CallCue™ name is used by the author to identify the original project.

@@ -1,9 +1,12 @@
 <!DOCTYPE html>
+<!-- © 2026 Aryan Khanna. CallCue is open source under the MIT License. https://github.com/Arnnnnnn/ -->
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CallCue</title>
+<meta name="author" content="Aryan Khanna">
+<meta name="copyright" content="© 2026 Aryan Khanna. Open source under the MIT License.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -112,6 +115,9 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
 .sw.on{border-color:var(--ink)}
 .row .fld{max-width:240px}
 @media(max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)!important}.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}.bar p{display:none}}
+.legal{text-align:center;color:var(--mute);font-size:.75rem;padding:28px 12px 20px;opacity:.8}
+.legal a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line)}
+.legal a:hover{color:var(--blue);border-bottom-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -207,6 +213,8 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
     </div>
   </div>
 </div>
+
+<footer class="legal">CallCue™ · © 2026 <a href="https://github.com/Arnnnnnn/" target="_blank" rel="noopener">Aryan Khanna</a> · Open source (MIT)</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
