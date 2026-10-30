@@ -74,6 +74,13 @@ button{cursor:pointer}
 .fine{color:var(--mute);font-size:.75rem;margin:14px 0 0}
 .panel{margin-bottom:var(--gap)}
 .grid.one{grid-template-columns:1fr}
+.handle{display:none;cursor:grab;touch-action:none;user-select:none;text-align:center;color:var(--mute);font-size:.75rem;padding:5px;margin:-4px 0 10px;border:1px dashed var(--line);border-radius:8px}
+body.arranging .handle{display:block}
+.live.off .handle{pointer-events:auto}
+body.arranging .live.off{opacity:1}
+body.arranging .col{min-height:120px;outline:1px dashed var(--line);outline-offset:4px;border-radius:14px}
+.dragging{position:fixed!important;z-index:50;opacity:.93;box-shadow:0 12px 32px rgba(0,0,0,.45);pointer-events:none;margin:0!important}
+.ph{border:2px dashed var(--blue);border-radius:14px;background:color-mix(in srgb,var(--blue) 8%,transparent)}
 .wrap.narrow{max-width:640px}
 .secs{display:flex;flex-direction:column;gap:6px;min-width:250px}
 .sec{display:flex;align-items:center;gap:6px}
@@ -129,8 +136,9 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
 <div class="wrap hide" id="app">
   <header class="bar">
     <div><h1><span class="dot"></span>CallCue</h1><p id="hello"></p></div>
-    <div class="right"><button class="b" id="gear" aria-expanded="false">Customise</button><button class="b" id="signout">Sign out</button></div>
+    <div class="right"><button class="b" id="arr">Arrange</button><button class="b" id="gear" aria-expanded="false">Customise</button><button class="b" id="signout">Sign out</button></div>
   </header>
+  <p class="hint hide" id="arrhint">Drag a card by its handle and drop it where you want it, in either column.</p>
 
   <section class="card panel hide" id="panel" aria-label="Customise">
     <h2>Make it yours</h2>
@@ -140,7 +148,7 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
     <div class="row"><label>Text size</label><div class="btns" id="sizes"></div></div>
     <div class="row"><label>Options</label><div class="btns" id="opts"></div></div>
     <div class="row"><label>Page layout</label><div class="btns" id="layout"></div></div>
-    <div class="row" style="align-items:flex-start"><label>Sections (order and visibility)</label><div class="secs" id="sections"></div></div>
+    <div class="row" style="align-items:flex-start"><label>Sections (tap to show or hide)</label><div class="btns" id="sections"></div></div>
     <div class="row"><label for="souts">Outcome buttons (comma separated)</label><input class="fld" id="souts" type="text" autocomplete="off"></div>
     <div class="row"><label>Saved in this browser only</label><button class="b" id="reset">Reset to default</button></div>
   </section>
@@ -237,12 +245,15 @@ const SAY={
 const ACCENTS=["#4da3ff","#3ddc84","#ff9f43","#c77dff","#ff6b81"];
 const THEMES={dark:"Dark",light:"Light",warm:"Warm"};
 const SIZES={S:"14px",M:"16px",L:"18px"};
-const DEF={name:"",theme:"dark",accent:ACCENTS[0],size:"M",compact:false,timer:true,ai:true,layout:"two",order:["prospect","pushback","stage","history","notes"],hidden:[],outcomes:["Interested","Callback","Not interested","Wrong number"]};
-const fresh=()=>({...DEF,order:[...DEF.order],hidden:[],outcomes:[...DEF.outcomes]});
+const DEF={name:"",theme:"dark",accent:ACCENTS[0],size:"M",compact:false,timer:true,ai:true,layout:"two",cols:{A:["prospect","stage","notes"],B:["pushback","history"]},hidden:[],outcomes:["Interested","Callback","Not interested","Wrong number"]};
+const fresh=()=>({...DEF,cols:{A:[...DEF.cols.A],B:[...DEF.cols.B]},hidden:[],outcomes:[...DEF.outcomes]});
 let P=fresh();
 try{Object.assign(P,JSON.parse(localStorage.getItem("callcue.prefs")||"{}"));}catch(e){}
-P.order=(P.order||[]).filter(i=>DEF.order.includes(i));DEF.order.forEach(i=>{if(!P.order.includes(i))P.order.push(i);});
-P.hidden=(P.hidden||[]).filter(i=>DEF.order.includes(i));
+const ALL=["prospect","stage","notes","pushback","history"];
+if(!(P.cols&&Array.isArray(P.cols.A)&&Array.isArray(P.cols.B)))P.cols={A:[...DEF.cols.A],B:[...DEF.cols.B]};
+P.cols.A=P.cols.A.filter(i=>ALL.includes(i));P.cols.B=P.cols.B.filter(i=>ALL.includes(i)&&!P.cols.A.includes(i));
+ALL.forEach(i=>{if(!P.cols.A.includes(i)&&!P.cols.B.includes(i))(DEF.cols.A.includes(i)?P.cols.A:P.cols.B).push(i);});
+P.hidden=(P.hidden||[]).filter(i=>ALL.includes(i));
 if(!Array.isArray(P.outcomes)||!P.outcomes.length)P.outcomes=[...DEF.outcomes];
 OUTCOMES=P.outcomes;
 const savePrefs=()=>{try{localStorage.setItem("callcue.prefs",JSON.stringify(P));}catch(e){}};
@@ -284,37 +295,68 @@ function applyPrefs(){
 
 /* ---- sections ---- */
 const SEC={prospect:"Who you are calling",stage:"Call stage and lines",pushback:"Objection replies",notes:"Call notes",history:"Call history"};
+const isOne=()=>P.layout==="one"||window.innerWidth<760;
+function bindLog(){
+  const lg=$("logcard"),h=$("c-history");
+  if(!h.classList.contains("hide")&&h.parentNode)h.parentNode.insertBefore(lg,h);else $("colA").appendChild(lg);
+}
 function arrange(){
   if($("app").classList.contains("hide"))return;
-  const A=$("colA"),B=$("colB"),one=P.layout==="one"||window.innerWidth<760;
+  const A=$("colA"),B=$("colB"),one=isOne(),arr=document.body.classList.contains("arranging");
   $("grid").classList.toggle("one",one);$("app").classList.toggle("narrow",P.layout==="one");
-  B.classList.remove("hide");
   Object.keys(SEC).forEach(id=>$("c-"+id).classList.toggle("hide",P.hidden.includes(id)));
-  const list=[];
-  P.order.forEach(id=>{if(P.hidden.includes(id))return;if(id==="history")list.push("logcard");list.push("c-"+id);});
-  if(P.hidden.includes("history"))list.push("logcard");
-  let ha=0,hb=0;
-  list.forEach(eid=>{
-    const el=$(eid),toA=one||ha<=hb;
-    (toA?A:B).appendChild(el);
-    const h=el.classList.contains("hide")?0:(el.offsetHeight||120);
-    if(toA)ha+=h;else hb+=h;
-  });
-  B.classList.toggle("hide",B.children.length===0);
+  (one?[...P.cols.A,...P.cols.B]:P.cols.A).forEach(id=>A.appendChild($("c-"+id)));
+  if(!one)P.cols.B.forEach(id=>B.appendChild($("c-"+id)));
+  bindLog();
+  B.classList.toggle("hide",one||(!P.cols.B.length&&!arr));
 }
-function moveSec(i,d){const o=P.order,j=i+d;[o[i],o[j]]=[o[j],o[i]];savePrefs();applyPrefs();}
+function saveCols(){
+  const ids=col=>[...col.children].map(el=>el.id).filter(i=>i&&i.startsWith("c-")).map(i=>i.slice(2));
+  if(!isOne())P.cols={A:ids($("colA")),B:ids($("colB"))};
+  else{
+    const order=ids($("colA"));
+    if(P.layout==="one")P.cols={A:order,B:[]};
+    else{const inA=new Set(P.cols.A);P.cols={A:order.filter(i=>inA.has(i)),B:order.filter(i=>!inA.has(i))};}
+  }
+  savePrefs();
+}
 function drawSections(){
   const box=$("sections");box.innerHTML="";
-  P.order.forEach((id,i)=>{
-    const r=document.createElement("div");r.className="sec";
-    const n=document.createElement("span");n.textContent=SEC[id];
-    const up=mk("↑","b sm",()=>moveSec(i,-1)),dn=mk("↓","b sm",()=>moveSec(i,1));
-    up.disabled=i===0;dn.disabled=i===P.order.length-1;
+  Object.keys(SEC).forEach(id=>{
     const hid=P.hidden.includes(id);
-    const tg=mk(hid?"Hidden":"Shown","b sm"+(hid?"":" on"),()=>{P.hidden=hid?P.hidden.filter(x=>x!==id):[...P.hidden,id];savePrefs();applyPrefs();});
-    r.append(n,up,dn,tg);box.appendChild(r);
+    box.appendChild(mk(SEC[id],"b sm"+(hid?"":" on"),()=>{P.hidden=hid?P.hidden.filter(x=>x!==id):[...P.hidden,id];savePrefs();applyPrefs();}));
   });
 }
+let drag=null;
+document.addEventListener("pointerdown",e=>{
+  const h=e.target.closest&&e.target.closest(".handle");
+  if(!h||!document.body.classList.contains("arranging")||drag)return;
+  e.preventDefault();
+  const card=h.parentElement,r=card.getBoundingClientRect(),ph=document.createElement("div");
+  ph.className="ph";ph.style.height=r.height+"px";card.after(ph);
+  drag={card,ph,dx:e.clientX-r.left,dy:e.clientY-r.top};
+  card.classList.add("dragging");card.style.width=r.width+"px";card.style.left=r.left+"px";card.style.top=r.top+"px";
+});
+window.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  const {card,ph}=drag;
+  card.style.left=(e.clientX-drag.dx)+"px";card.style.top=(e.clientY-drag.dy)+"px";
+  let col=$("colA");
+  if(!isOne()){const ra=$("colA").getBoundingClientRect(),rb=$("colB").getBoundingClientRect();if(e.clientX>(ra.right+rb.left)/2)col=$("colB");}
+  const kids=[...col.children].filter(el=>el!==card&&el!==ph&&el.id!=="logcard"&&!el.classList.contains("hide"));
+  let before=null;
+  for(const k of kids){const r=k.getBoundingClientRect();if(e.clientY<r.top+r.height/2){before=k;break;}}
+  if(ph.parentNode!==col||ph.nextElementSibling!==before)col.insertBefore(ph,before);
+  if(e.clientY<70)window.scrollBy(0,-14);else if(e.clientY>window.innerHeight-70)window.scrollBy(0,14);
+});
+function endDrag(){
+  if(!drag)return;
+  const {card,ph}=drag;drag=null;
+  ph.replaceWith(card);card.classList.remove("dragging");card.removeAttribute("style");
+  bindLog();saveCols();
+}
+window.addEventListener("pointerup",endDrag);
+window.addEventListener("pointercancel",endDrag);
 let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(arrange,200);});
 
 /* ---- stage lines ---- */
@@ -476,6 +518,11 @@ $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();
 ["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",()=>{prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};schedule();}));
 $("pcontact").addEventListener("input",()=>{contact=$("pcontact").value.trim();});
 $("sname").value=P.name;
+Object.keys(SEC).forEach(id=>{const h=document.createElement("div");h.className="handle";h.textContent="⠿ Drag to move";h.title="Drag to move";$("c-"+id).prepend(h);});
+$("arr").onclick=()=>{
+  const on=document.body.classList.toggle("arranging");
+  $("arr").textContent=on?"Done":"Arrange";$("arr").classList.toggle("on",on);$("arrhint").classList.toggle("hide",!on);arrange();
+};
 $("souts").value=P.outcomes.join(", ");
 $("souts").addEventListener("change",()=>{
   const l=[...new Set($("souts").value.split(",").map(x=>x.trim()).filter(Boolean))].slice(0,8);
