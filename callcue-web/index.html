@@ -73,6 +73,12 @@ button{cursor:pointer}
 #gmsg:empty{display:none}
 .fine{color:var(--mute);font-size:.75rem;margin:14px 0 0}
 .panel{margin-bottom:var(--gap)}
+.grid.one{grid-template-columns:1fr}
+.wrap.narrow{max-width:640px}
+.secs{display:flex;flex-direction:column;gap:6px;min-width:250px}
+.sec{display:flex;align-items:center;gap:6px}
+.sec span{flex:1;font-size:.88rem}
+.b.sm{padding:3px 9px;font-size:.78rem}
 button.tile{text-align:left;border:1px solid transparent;cursor:pointer;width:100%}
 button.tile:hover{border-color:var(--line)}
 .tile.on{border-color:var(--blue)!important}
@@ -132,7 +138,10 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
     <div class="row"><label>Theme</label><div class="btns" id="themes"></div></div>
     <div class="row"><label>Accent colour</label><div class="btns" id="accents"></div></div>
     <div class="row"><label>Text size</label><div class="btns" id="sizes"></div></div>
-    <div class="row"><label>Layout</label><div class="btns" id="opts"></div></div>
+    <div class="row"><label>Options</label><div class="btns" id="opts"></div></div>
+    <div class="row"><label>Page layout</label><div class="btns" id="layout"></div></div>
+    <div class="row" style="align-items:flex-start"><label>Sections (order and visibility)</label><div class="secs" id="sections"></div></div>
+    <div class="row"><label for="souts">Outcome buttons (comma separated)</label><input class="fld" id="souts" type="text" autocomplete="off"></div>
     <div class="row"><label>Saved in this browser only</label><button class="b" id="reset">Reset to default</button></div>
   </section>
 
@@ -141,9 +150,9 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
     <button class="b go" id="callbtn">Start call</button>
   </section>
 
-  <div class="grid">
-    <div class="col">
-      <section class="card">
+  <div class="grid" id="grid">
+    <div class="col" id="colA">
+      <section class="card" id="c-prospect">
         <h2>Who are you calling? (optional)</h2>
         <div class="stack">
           <div class="two">
@@ -154,19 +163,19 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
           <input class="fld" id="pnotes" type="text" placeholder="What you know: industry, size, pain point" autocomplete="off">
         </div>
       </section>
-      <section class="card live">
-        <h2>1. Where are you in the call?</h2>
+      <section class="card live" id="c-stage">
+        <h2>Where are you in the call?</h2>
         <div class="btns" id="stages" role="group" aria-label="Call stage"></div>
         <div class="say" aria-live="polite"><div class="sayhead"><small>Say next</small><button class="b mini" id="regen" type="button">↻ New line</button></div><p id="say"></p></div>
       </section>
-      <section class="card live">
+      <section class="card live" id="c-notes">
         <h2>Call notes</h2>
         <textarea class="fld" id="notes" placeholder="Jot down what they say, names, follow-ups. Saved with the call."></textarea>
       </section>
     </div>
-    <div class="col">
-      <section class="card live">
-        <h2>2. Prospect pushed back?</h2>
+    <div class="col" id="colB">
+      <section class="card live" id="c-pushback">
+        <h2>Prospect pushed back?</h2>
         <div class="btns" id="chips"></div>
         <div class="inrow">
           <input class="fld" id="said" type="text" placeholder="Or type what they said" autocomplete="off">
@@ -180,7 +189,7 @@ textarea.fld{resize:vertical;font-family:inherit;min-height:110px}
         <input class="fld" id="oth" type="text" placeholder="Other outcome (type it if none of these fit)" autocomplete="off" style="margin-top:10px">
         <div class="inrow"><button class="b go" id="save">Save call</button><button class="b" id="discard">Discard</button></div>
       </section>
-      <section class="card">
+      <section class="card" id="c-history">
         <h2>Call history</h2>
         <p class="hint">Tap a count to see those calls.</p>
         <div class="tiles" id="tiles"></div>
@@ -198,7 +207,7 @@ const SB_URL="https://bulrjxpftuguatrjxoha.supabase.co",SB_KEY="sb_publishable_p
 const sb=supabase.createClient(SB_URL,SB_KEY);
 let token=null,me="";
 const STAGES=["Opening","Discovery","Pitch","Objection","Close"];
-const OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
+let OUTCOMES=["Interested","Callback","Not interested","Wrong number"];
 const SAY={
  Opening:[
   "Hi {name}, this is {me}. I know I am calling out of the blue. Do you have 30 seconds?",
@@ -228,9 +237,14 @@ const SAY={
 const ACCENTS=["#4da3ff","#3ddc84","#ff9f43","#c77dff","#ff6b81"];
 const THEMES={dark:"Dark",light:"Light",warm:"Warm"};
 const SIZES={S:"14px",M:"16px",L:"18px"};
-const DEF={name:"",theme:"dark",accent:ACCENTS[0],size:"M",compact:false,timer:true};
-let P={...DEF};
+const DEF={name:"",theme:"dark",accent:ACCENTS[0],size:"M",compact:false,timer:true,ai:true,layout:"two",order:["prospect","pushback","stage","history","notes"],hidden:[],outcomes:["Interested","Callback","Not interested","Wrong number"]};
+const fresh=()=>({...DEF,order:[...DEF.order],hidden:[],outcomes:[...DEF.outcomes]});
+let P=fresh();
 try{Object.assign(P,JSON.parse(localStorage.getItem("callcue.prefs")||"{}"));}catch(e){}
+P.order=(P.order||[]).filter(i=>DEF.order.includes(i));DEF.order.forEach(i=>{if(!P.order.includes(i))P.order.push(i);});
+P.hidden=(P.hidden||[]).filter(i=>DEF.order.includes(i));
+if(!Array.isArray(P.outcomes)||!P.outcomes.length)P.outcomes=[...DEF.outcomes];
+OUTCOMES=P.outcomes;
 const savePrefs=()=>{try{localStorage.setItem("callcue.prefs",JSON.stringify(P));}catch(e){}};
 const $=id=>document.getElementById(id);
 let stage="Opening",objection=null,secs=0,busy=false,playbook=[],adaptId=0,sayId=0,pt;
@@ -252,7 +266,9 @@ function group(id,items,isOn,pick){
 function drawControls(){
   group("themes",Object.entries(THEMES),k=>P.theme===k,k=>P.theme=k);
   group("sizes",[["S","Small"],["M","Medium"],["L","Large"]],k=>P.size===k,k=>P.size=k);
-  group("opts",[["compact","Compact"],["timer","Show timer"]],k=>P[k],k=>P[k]=!P[k]);
+  group("opts",[["compact","Compact"],["timer","Show timer"],["ai","AI lines"]],k=>P[k],k=>P[k]=!P[k]);
+  group("layout",[["two","Two columns"],["one","One column"]],k=>P.layout===k,k=>P.layout=k);
+  drawSections();
   const box=$("accents");box.innerHTML="";
   ACCENTS.forEach(c=>{const b=mk("","b sw"+(P.accent===c?" on":""),()=>{P.accent=c;savePrefs();applyPrefs();});b.style.background=c;b.setAttribute("aria-label","Accent "+c);box.appendChild(b);});
 }
@@ -263,8 +279,43 @@ function applyPrefs(){
   $("timer").classList.toggle("hide",!P.timer);
   const hr=new Date().getHours(),g=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
   $("hello").textContent=g+(who()?", "+who():"")+". Ready for the next call?";
-  drawControls();
+  OUTCOMES=P.outcomes;drawControls();drawHistory();if(state==="end")drawOuts();arrange();
 }
+
+/* ---- sections ---- */
+const SEC={prospect:"Who you are calling",stage:"Call stage and lines",pushback:"Objection replies",notes:"Call notes",history:"Call history"};
+function arrange(){
+  if($("app").classList.contains("hide"))return;
+  const A=$("colA"),B=$("colB"),one=P.layout==="one"||window.innerWidth<760;
+  $("grid").classList.toggle("one",one);$("app").classList.toggle("narrow",P.layout==="one");
+  B.classList.remove("hide");
+  Object.keys(SEC).forEach(id=>$("c-"+id).classList.toggle("hide",P.hidden.includes(id)));
+  const list=[];
+  P.order.forEach(id=>{if(P.hidden.includes(id))return;if(id==="history")list.push("logcard");list.push("c-"+id);});
+  if(P.hidden.includes("history"))list.push("logcard");
+  let ha=0,hb=0;
+  list.forEach(eid=>{
+    const el=$(eid),toA=one||ha<=hb;
+    (toA?A:B).appendChild(el);
+    const h=el.classList.contains("hide")?0:(el.offsetHeight||120);
+    if(toA)ha+=h;else hb+=h;
+  });
+  B.classList.toggle("hide",B.children.length===0);
+}
+function moveSec(i,d){const o=P.order,j=i+d;[o[i],o[j]]=[o[j],o[i]];savePrefs();applyPrefs();}
+function drawSections(){
+  const box=$("sections");box.innerHTML="";
+  P.order.forEach((id,i)=>{
+    const r=document.createElement("div");r.className="sec";
+    const n=document.createElement("span");n.textContent=SEC[id];
+    const up=mk("↑","b sm",()=>moveSec(i,-1)),dn=mk("↓","b sm",()=>moveSec(i,1));
+    up.disabled=i===0;dn.disabled=i===P.order.length-1;
+    const hid=P.hidden.includes(id);
+    const tg=mk(hid?"Hidden":"Shown","b sm"+(hid?"":" on"),()=>{P.hidden=hid?P.hidden.filter(x=>x!==id):[...P.hidden,id];savePrefs();applyPrefs();});
+    r.append(n,up,dn,tg);box.appendChild(r);
+  });
+}
+let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(arrange,200);});
 
 /* ---- stage lines ---- */
 const pick={};
@@ -290,13 +341,14 @@ async function fetchLine(st,fresh){
 }
 async function setSay(){
   $("regen").classList.toggle("hide",stage==="Objection");
-  if(stage==="Objection"||!known()){$("say").textContent=baseFor(stage);return;}
+  if(!P.ai||stage==="Objection"||!known()){$("say").textContent=baseFor(stage);return;}
   const id=++sayId;
   if(!sayCache[keyFor(stage)])$("say").textContent="Personalising…";
   const line=await fetchLine(stage);
   if(id===sayId)$("say").textContent=line;
 }
 async function prefetch(){
+  if(!P.ai)return;
   const snap=JSON.stringify(prospect);
   for(const st of ["Opening","Discovery"]){if(JSON.stringify(prospect)!==snap)return;await fetchLine(st);}
 }
@@ -329,7 +381,7 @@ async function reply(text,row){
   try{
     const d=row?{objection:row.objection,reply:row.reply,follow_up:row.follow_up||""}:await post("/reply",{text});
     objection=d.objection;show(d);msg("");
-    if(known()&&d.reply)adaptReply(text,d);
+    if(P.ai&&known()&&d.reply)adaptReply(text,d);
   }catch(e){msg("Could not get a reply. Check your connection and try again.",true);}
   finally{busy=false;$("go").disabled=false;$("go").textContent="Get reply";}
 }
@@ -414,7 +466,7 @@ $("regen").onclick=async()=>{
   const cur=$("say").textContent;
   if(cur&&!cur.endsWith("…")&&!(seen[stage]||[]).includes(cur))remember(stage,cur);
   const id=++sayId;$("say").textContent="Writing a new line…";
-  let line=await fetchLine(stage,true);
+  let line=P.ai?await fetchLine(stage,true):cur;
   if(line===cur){const n=lines(stage).length;pick[stage]=((pick[stage]||0)+1)%n;line=baseFor(stage);}
   if(id===sayId)$("say").textContent=line;
 };
@@ -424,9 +476,14 @@ $("said").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();
 ["pname","pco","pnotes"].forEach(i=>$(i).addEventListener("input",()=>{prospect={name:$("pname").value.trim(),company:$("pco").value.trim(),notes:$("pnotes").value.trim()};schedule();}));
 $("pcontact").addEventListener("input",()=>{contact=$("pcontact").value.trim();});
 $("sname").value=P.name;
+$("souts").value=P.outcomes.join(", ");
+$("souts").addEventListener("change",()=>{
+  const l=[...new Set($("souts").value.split(",").map(x=>x.trim()).filter(Boolean))].slice(0,8);
+  P.outcomes=l.length?l:[...DEF.outcomes];$("souts").value=P.outcomes.join(", ");savePrefs();applyPrefs();
+});
 $("sname").addEventListener("input",()=>{P.name=$("sname").value.trim();savePrefs();applyPrefs();schedule();});
 $("gear").onclick=()=>{const p=$("panel"),open=p.classList.toggle("hide")===false;$("gear").setAttribute("aria-expanded",open);};
-$("reset").onclick=()=>{P={...DEF};savePrefs();$("sname").value="";applyPrefs();setSay();};
+$("reset").onclick=()=>{P=fresh();savePrefs();$("sname").value="";$("souts").value=P.outcomes.join(", ");applyPrefs();setSay();};
 applyPrefs();setState("idle");reroll();drawStages();
 async function start(){
   $("chips").innerHTML="";
