@@ -303,6 +303,8 @@ function bindLog(){
 function arrange(){
   if($("app").classList.contains("hide"))return;
   const A=$("colA"),B=$("colB"),one=isOne(),arr=document.body.classList.contains("arranging");
+  const ae=document.activeElement;
+  if(!arr&&ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"))return; // moving nodes while typing closes the mobile keyboard
   $("grid").classList.toggle("one",one);$("app").classList.toggle("narrow",P.layout==="one");
   Object.keys(SEC).forEach(id=>$("c-"+id).classList.toggle("hide",P.hidden.includes(id)));
   (one?[...P.cols.A,...P.cols.B]:P.cols.A).forEach(id=>A.appendChild($("c-"+id)));
@@ -357,7 +359,12 @@ function endDrag(){
 }
 window.addEventListener("pointerup",endDrag);
 window.addEventListener("pointercancel",endDrag);
-let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(arrange,200);});
+let rz,lastW=window.innerWidth;
+window.addEventListener("resize",()=>{
+  if(window.innerWidth===lastW)return; // height-only resize = mobile keyboard opening/closing
+  lastW=window.innerWidth;
+  clearTimeout(rz);rz=setTimeout(arrange,200);
+});
 
 /* ---- stage lines ---- */
 const pick={};
