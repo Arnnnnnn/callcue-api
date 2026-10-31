@@ -359,6 +359,8 @@ class SuggestIn(BaseModel):
     me: str | None = None
     offer: str | None = None
     earlier: str | None = None
+    intent: str | None = None
+    ask: str | None = None
     previous: list[str] = []
     avoid: list[str] = []
 
@@ -390,6 +392,15 @@ STAGE_PLAN = {
     8: ("End the call clearly.",
         "Repeat the agreed next step in one sentence, thank them and say goodbye. If it was a no, close warmly without pushing.",
         "new questions, a new pitch, reopening objections"),
+}
+
+
+INTENT_COACH = {
+    "What do I say now?": "Decide the single best next thing to say at this point.",
+    "Answer their question": "Answer the prospect's last question or concern plainly in one or two sentences, then stop or ask one short follow-up.",
+    "They are hesitant": "The prospect is hesitant. Acknowledge it calmly, lower the pressure and offer a small, easy next move.",
+    "Ask a follow-up": "Ask one sharp follow-up question that builds directly on their last words.",
+    "Wrap up politely": "Close the call politely and clearly, without pushing.",
 }
 
 
@@ -428,6 +439,10 @@ def suggest(b: SuggestIn, user=Depends(current_user)):
         f"Everything you write must belong to this stage only. JOB OF THIS STAGE: {job} "
         f"SHAPE OF THE SAY LINE: {shape} DO NOT: {dont}. "
         + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
+        + (f"The caller asked for help with: {b.intent}. "
+           + (f"Bridge naturally toward the next stage, {STAGE_NAMES.get(b.n + 1, 'the end of the call')}. "
+              if b.intent == "Move to next stage" else INTENT_COACH.get(b.intent, "") + " ") if b.intent else "")
+        + ("The caller's own note about what is happening right now is the freshest information, so use it. " if b.ask else "")
         + "Earlier suggestions are listed below. Do not repeat their ideas or wording, and do not redo a stage "
         "that is already finished. "
         "Output exactly two lines and nothing else:\n"
@@ -440,6 +455,8 @@ def suggest(b: SuggestIn, user=Depends(current_user)):
     base_user = (f"Prospect: {b.name or 'unknown'}, {b.role or 'role unknown'}, {b.company or 'company unknown'}.\n"
                  f"Earlier in the call: {b.earlier or 'nothing yet'}.\n"
                  f"What the prospect just said: {said}")
+    if b.ask:
+        base_user += f"\nCaller's note about what is happening right now: {b.ask}"
     seen = [x for x in (b.previous + b.avoid) if x]
     if seen:
         base_user += "\nEarlier suggestions (do not repeat):\n" + "\n".join(f"- {x}" for x in seen[-6:])
