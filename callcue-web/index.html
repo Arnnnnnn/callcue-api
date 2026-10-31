@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="author" content="Aryan Khanna">
 <title>CallCue</title>
+<link rel="preconnect" href="https://callcue-api.onrender.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0e1116;--card:#161a22;--line:#272d3a;--ink:#eef1f6;--mute:#8d96a6;--ac:#7cc4ff;--bad:#ff7b72}
@@ -80,6 +81,7 @@ textarea{min-height:92px;resize:vertical}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const API="https://callcue-api.onrender.com";
+fetch(API+"/").catch(()=>{});
 const sb=supabase.createClient("https://bulrjxpftuguatrjxoha.supabase.co","sb_publishable_p7i7w0HeN258ZwI--ATl2g_Fhft44vq");
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -94,7 +96,7 @@ const S=[
 {n:"Close",does:"End clearly and record the outcome, the next step and their words from stage 5.",say:["The line drops mid-sentence.","A warm goodbye after a no is still a no.","Thank you, send it across."],taps:["Ended clearly","Line dropped","They hung up","Warm goodbye after a no"]}];
 const OL={agreed_to_receive_report:"Report agreed",next_step_agreed:"Next step agreed",interested:"Interested",follow_up:"Follow up",call_again:"Call again",not_interested:"Not interested",do_not_call:"Do not call",wrong_person:"Wrong person",moved_company:"Moved company"};
 const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
-let token=null,calls=[],flt=0,ME="",OFFER=ls("cc.offer")||"",AI=ls("cc.ai")!=="0";
+let token=null,calls=[],flt=0,loaded=false,ME="",OFFER=ls("cc.offer")||"",AI=ls("cc.ai")!=="0";
 const fresh=()=>({view:"home",i:0,reach:0,taps:{},words:{},who:{},secs:0,out:null,why:"",sug:{}});
 let st=fresh();
 async function api(p,o={}){o.headers={...(o.headers||{}),...(token?{Authorization:"Bearer "+token}:{})};const r=await fetch(API+p,o);if(r.status===401){gate("Session expired. Please sign in again.");throw 0}if(!r.ok)throw new Error(r.status);return r.json();}
@@ -102,7 +104,11 @@ const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json
 function toast(t){const e=$("toast");e.textContent=t;e.classList.remove("hide");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.add("hide"),2600);}
 const when=t=>t?new Date(t).toLocaleString([],{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}):"";
 const jp=v=>{if(v&&typeof v==="object")return v;try{return JSON.parse(v)||{}}catch(e){return{}}};
-async function load(){try{calls=await api("/calls");}catch(e){if(e!==0)toast("Could not load your calls.");}render();}
+async function load(){
+  render();
+  try{calls=await api("/calls");loaded=true;}catch(e){if(e===0)return;loaded=true;toast("Could not load your calls.");}
+  const h=$("hist");if(h)h.innerHTML=histHTML();
+}
 
 function suggestOutcome(){
   const t=st.taps,pick=(o,w)=>[o,w];
@@ -123,18 +129,21 @@ function row(c){
   <div class="chips">${c.stage_reached?`<span class="chip">Stage ${c.stage_reached} · ${esc(S[c.stage_reached-1]?.n)}</span>`:""}<span class="chip o">${esc(OL[c.outcome]||c.outcome)}</span></div>
   ${need?`<p class="q">“${esc(need)}”</p>`:""}${c.next_step?`<p class="ns">Next: ${esc(c.next_step)}</p>`:""}</div>`;
 }
-function home(){
+function histHTML(){
   const cnt=Array(8).fill(0);calls.forEach(c=>{if(c.stage_reached>=1&&c.stage_reached<=8)cnt[c.stage_reached-1]++;});
-  const mx=Math.max(1,...cnt),list=calls.filter(c=>!flt||c.stage_reached===flt),w=st.who;
+  const mx=Math.max(1,...cnt),list=calls.filter(c=>!flt||c.stage_reached===flt);
+  return `<section class="card"><h2>Where my calls end</h2>${cnt.map((n,i)=>`<button class="bar${flt===i+1?" on":""}" data-a="flt" data-i="${i+1}"><i style="width:${n/mx*100}%"></i><span>${i+1} · ${S[i].n}</span><b>${n}</b></button>`).join("")}
+  <p class="hint">Tap a stage to filter the list${flt?` · <a href="#" data-a="flt" data-i="0">clear</a>`:""}</p></section>
+  <section class="card"><h2>Past calls${flt?" · stage "+flt:""}</h2>${!loaded?'<p class="hint">Loading your calls. If the server was asleep, this can take up to a minute the first time.</p>':list.length?list.map(row).join(""):'<p class="hint">Nothing here yet.</p>'}</section>`;
+}
+function home(){
+  const w=st.who;
   return `<section class="card"><h2>New call</h2>
   <div class="two"><input id="wn" placeholder="Name" value="${esc(w.name)}"><input id="wc" placeholder="Company" value="${esc(w.company)}"></div>
   <div class="two"><input id="wr" placeholder="Role" value="${esc(w.role)}"><input id="wp" placeholder="Phone or email" value="${esc(w.contact)}"></div>
   <input id="wo" placeholder="What you offer, in one line (the AI uses only this)" value="${esc(OFFER)}" style="margin-bottom:8px">
   <label class="chk"><input type="checkbox" id="wai" ${AI?"checked":""}> AI reply suggestions</label>
-  <button class="btn pri" data-a="start">Start call</button></section>
-  <section class="card"><h2>Where my calls end</h2>${cnt.map((n,i)=>`<button class="bar${flt===i+1?" on":""}" data-a="flt" data-i="${i+1}"><i style="width:${n/mx*100}%"></i><span>${i+1} · ${S[i].n}</span><b>${n}</b></button>`).join("")}
-  <p class="hint">Tap a stage to filter the list${flt?` · <a href="#" data-a="flt" data-i="0">clear</a>`:""}</p></section>
-  <section class="card"><h2>Past calls${flt?" · stage "+flt:""}</h2>${list.length?list.map(row).join(""):'<p class="hint">Nothing here yet.</p>'}</section>`;
+  <button class="btn pri" data-a="start">Start call</button></section><div id="hist">${histHTML()}</div>`;
 }
 function callv(){
   const i=st.i,s=S[i],w=st.who;
