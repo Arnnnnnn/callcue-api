@@ -18,7 +18,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 .94rem/1.45 Inter,s
 body.incall{padding-bottom:96px}
 button,textarea,input{font:inherit;color:inherit}button{cursor:pointer}
 :focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-.hide{display:none!important}.wrap{max-width:980px;margin:0 auto;width:100%}
+.hide{display:none!important}.wrap{max-width:1180px;margin:0 auto;width:100%}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .brand{font-weight:700;font-size:1.1rem;display:flex;align-items:center;gap:8px}.dot{width:9px;height:9px;border-radius:50%;background:#3ddc84}
 .who{color:var(--mute);font-size:.85rem;display:flex;gap:10px;align-items:center}
@@ -30,7 +30,7 @@ textarea{min-height:92px;resize:vertical}
 .btn{background:transparent;border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-weight:600}
 .btn:hover{border-color:var(--mute)}.btn:disabled{opacity:.4;cursor:default}
 .pri{background:color-mix(in srgb,var(--ac) 18%,var(--card));border:1px solid color-mix(in srgb,var(--ac) 65%,var(--card));color:var(--act)}.end{border-color:var(--bad);color:var(--bad)}
-.call{display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
+.call{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;align-items:start}
 .rail{display:flex;flex-direction:column;gap:2px;position:sticky;top:12px}
 .rs{min-height:46px;display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;border:0;padding:7px 6px;border-radius:10px;color:var(--mute)}
 .rs em{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.72rem;font-weight:600}
@@ -68,8 +68,12 @@ body.compact .card{padding:12px}body.compact .tap{padding:9px 8px}body.compact .
 .mock .ms{border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;margin:0}
 .gatecard{max-width:none;text-align:left;padding:28px 26px}.gatecard h3{font-size:1.4rem;margin:0 0 6px}.gatecard .hint{margin:0 0 18px}.gatecard .fine{color:var(--mute);font-size:.75rem;margin:14px 0 0}
 @media(max-width:820px){.gate2{grid-template-columns:1fr;gap:22px}.gatecard{order:-1}.hero h1{font-size:1.7rem}}
+.hgrid{display:grid;grid-template-columns:350px minmax(0,1fr);gap:14px;align-items:start}
+.aiside h2{margin-top:0}
+@media(min-width:900px){.stage{display:grid;grid-template-columns:minmax(0,1fr) 330px;column-gap:26px;align-content:start}.stage>*{grid-column:1}.stage>.aiside{grid-column:2;grid-row:1/span 12;align-self:start;position:sticky;top:12px}}
+@media(max-width:860px){.hgrid{grid-template-columns:1fr}}
 .acts{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 35%);padding:22px 16px 14px}
-.acts div{max-width:980px;margin:0 auto;display:flex;gap:8px}.acts .grow{flex:1}
+.acts div{max-width:760px;margin:0 auto;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 8px 28px rgba(0,0,0,.3)}.acts .grow{flex:1}
 .bar{position:relative;display:flex;justify-content:space-between;width:100%;background:none;border:0;border-radius:8px;padding:7px 10px;margin-bottom:4px;overflow:hidden;text-align:left}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--ac) 22%,transparent)}.bar span,.bar b{position:relative}
 .bar.on{outline:1px solid var(--ac)}
@@ -187,11 +191,11 @@ function histHTML(){
 }
 function home(){
   const w=st.who;
-  return `<section class="card"><h2>New call</h2>
+  return `<div class="hgrid"><section class="card"><h2>New call</h2>
   <div class="two"><input id="wn" placeholder="Name" value="${esc(w.name)}"><input id="wc" placeholder="Company" value="${esc(w.company)}"></div>
   <div class="two"><input id="wr" placeholder="Role" value="${esc(w.role)}"><input id="wp" placeholder="Phone or email" value="${esc(w.contact)}"></div>
   <input id="wo" placeholder="What you offer, in one line (the AI uses only this)" value="${esc(OFFER)}" style="margin-bottom:8px">
-  <button class="btn pri" data-a="start">Start call</button></section><div id="hist">${histHTML()}</div>`;
+  <button class="btn pri" data-a="start">Start call</button></section><div id="hist">${histHTML()}</div></div>`;
 }
 function callv(){
   const i=st.i,s=S[i],w=st.who;
@@ -203,7 +207,7 @@ function callv(){
   ${P.say?`<h2>They may say</h2><ul class="say">${s.say.map(x=>`<li>“${x}”</li>`).join("")}</ul>`:""}
   <h2>What happened</h2><div class="taps">${s.taps.map(t=>`<button class="tap${st.taps[i]===t?" on":""}" data-a="tap" data-t="${esc(t)}">${t}</button>`).join("")}</div>
   ${s.note?`<p class="note">${s.note}</p>`:""}
-  ${AI?`<h2>Suggested reply</h2><div class="sug" id="sug">${sugHTML(i)}</div>`:""}
+  <div class="aiside"><h2>Suggested reply</h2><div class="sug" id="sug">${sugHTML(i)}</div></div>
   <h2>Their words</h2><textarea id="w" placeholder="What they said, as they said it. The AI reads this.">${esc(st.words[i]||"")}</textarea></section></div>
   <div class="acts"><div><button class="btn" data-a="back" ${i?"":"disabled"}>‹ Back</button><button class="btn pri grow" data-a="next">${i<7?"Next: "+S[i+1].n+" ›":"Finish"}</button><button class="btn end" data-a="end">End call</button></div></div>`;
 }
@@ -247,6 +251,7 @@ function sugHTML(i){
   const x=st.sug[i];
   if(!x)return '<p class="sh">A suggested line appears here.</p>';
   if(x.busy)return '<p class="sh">Thinking…</p>';
+  if(!x.text&&x.read)return `<p class="sr">${esc(x.read)}</p>`;
   if(!x.text)return '<p class="sh">Could not get a suggestion.</p><button class="rg" data-a="regen">↻ Try again</button>';
   return `${x.read?`<p class="sr">${esc(x.read)}</p>`:""}<p class="sl">“${esc(x.text)}”</p><button class="rg" data-a="regen">↻ New line</button>`;
 }
@@ -256,9 +261,10 @@ async function suggest(i,force){
   const tap=st.taps[i]||"",w=st.words[i]||"",key=[i,tap,w].join("|"),cur=st.sug[i];
   if(!force&&cur&&cur.key===key)return;
   const hist=(cur&&cur.hist)||[];
+  if(i===5&&!tap&&!w){st.sug[i]={key,text:"",read:"Listen for the reason behind the no, and make sure you understand it before replying. Tap what happened when you hear it.",busy:false,hist};paint();return;}
   st.sug[i]={key,text:"",busy:true,hist};paint();
   try{
-    const d=await post("/suggest",{stage:S[i].n,n:i+1,tap:tap||null,words:w||null,name:st.who.name||null,company:st.who.company||null,role:st.who.role||null,me:(P.me||ME)||null,offer:OFFER||null,earlier:earlier(i)||null,avoid:hist.slice(-3)});
+    const d=await post("/suggest",{stage:S[i].n,n:i+1,tap:tap||null,words:w||null,name:st.who.name||null,company:st.who.company||null,role:st.who.role||null,me:(P.me||ME)||null,offer:OFFER||null,earlier:earlier(i)||null,previous:S.slice(0,i).map((_,k)=>(st.sug[k]&&st.sug[k].text)||"").filter(Boolean),avoid:hist.slice(-3)});
     st.sug[i]={key,text:d.line||"",read:d.read||"",busy:false,hist:d.line?[...hist,d.line]:hist};
   }catch(e){if(e===0)return;st.sug[i]={key,text:"",busy:false,hist};}
   if(st.view==="call"&&st.i===i)paint();

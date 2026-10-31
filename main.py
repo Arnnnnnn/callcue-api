@@ -1,4 +1,4 @@
-import os, json, random, requests
+import os, re, json, random, requests
 from collections import Counter
 from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -359,47 +359,96 @@ class SuggestIn(BaseModel):
     me: str | None = None
     offer: str | None = None
     earlier: str | None = None
+    previous: list[str] = []
     avoid: list[str] = []
+
+
+STAGE_NAMES = {1: "Opening", 2: "Purpose", 3: "Permission", 4: "Their business",
+               5: "Their need", 6: "Objection", 7: "Next step", 8: "Close"}
+STAGE_PLAN = {
+    1: ("Reach the right person and say who you are.",
+        "Greet, give your name, and ask for the person by name if someone else answered. No pitch.",
+        "explaining the service, asking for a long conversation, asking about their business"),
+    2: ("Give the reason for the call in one or two plain sentences they could repeat to a colleague.",
+        "The reason for calling, in terms of outcomes and not a label. At most a short check at the end.",
+        "asking about their business, listing features, asking for a meeting"),
+    3: ("Find out whether they can talk now.",
+        "A short, courteous request for a minute, or a callback time. If they asked a question, answer it in one line first, then ask again.",
+        "describing the service at length, asking about their business, proposing a meeting"),
+    4: ("Learn about their company before saying more about yours.",
+        "One open question about what the company does, sells or how it is run, starting from anything they said.",
+        "pitching, asking about problems or needs, repeating the purpose, asking permission again"),
+    5: ("Draw out what they are trying to do or struggling with, in their own words.",
+        "One follow-up question about a goal or difficulty they mentioned, using their own words. No solutions.",
+        "pitching, proposing a meeting, asking basic company questions again"),
+    6: ("Understand the reason behind the no.",
+        "Acknowledge the reason in a few words, then ask one question that helps you understand it. No rebuttal.",
+        "arguing, listing benefits, repeating the purpose, pushing for a meeting"),
+    7: ("Agree ONE concrete next step.",
+        "Propose or confirm a single step with a channel or a time, ask which time suits them, and confirm the number or address.",
+        "re-pitching, asking discovery questions again, offering several options"),
+    8: ("End the call clearly.",
+        "Repeat the agreed next step in one sentence, thank them and say goodbye. If it was a no, close warmly without pushing.",
+        "new questions, a new pitch, reopening objections"),
+}
+
+
+def _words(t):
+    return set(re.findall(r"[a-z]{4,}", (t or "").lower()))
+
+
+def _similar(line, others):
+    w = _words(line)
+    return any(w and _words(o) and len(w & _words(o)) / len(w | _words(o)) > 0.5 for o in others)
 
 
 @app.post("/suggest")
 def suggest(b: SuggestIn, user=Depends(current_user)):
-    coach = STAGE_COACH.get(b.n, "Write the next natural line the caller can say.")
+    job, shape, dont = STAGE_PLAN.get(b.n, STAGE_PLAN[1])
     tap = TAP_COACH.get(b.tap or "", "")
     offer = b.offer or "not stated, so say nothing about the offer beyond why you called"
+    trail = "; ".join(f"{k} {v}" for k, v in STAGE_NAMES.items())
     system = (
         "You are a calm, experienced sales call coach helping a caller during a live cold call to a business "
         "owner or senior manager in India. "
         f"The caller is {b.me or 'the caller'}. What the caller offers: {offer}. "
         "Voice: formal, polite and slightly friendly Indian business English. Use 'please' and 'may I' naturally; "
         "no slang, no exclamation marks, no flattery, no pressure. "
-        "Think about the situation first, then write the reply. "
         "Rules: respond directly to what the prospect actually said, using their own words, and answer any question "
         "they asked before asking your own. Ask at most one question. Never invent facts about the offer, results, "
         "numbers, clients or the prospect. The name, company and role describe the PROSPECT, never the caller. "
         "Use the prospect's name at most once. Reply in the language the prospect used (English, Hindi or Hinglish), "
         "English if unclear. "
         "What real calls showed: 'send it on WhatsApp or email' is common and often a polite brush-off, so accept it, "
-        "confirm the channel and ask when you may follow up. A question back at the permission stage ('from where?') "
-        "is not a yes. People often ask what you do twice because the first answer was only a label, so answer in plain "
-        "outcomes. If the person is the wrong one or has left, ask who handles this and for a number. A time the "
-        "prospect names is worth more than one you propose. "
-        f"Stage {b.n} ({b.stage}): {coach} " + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
-        + "Output exactly two lines and nothing else:\n"
+        "confirm the channel and ask when you may follow up. A question back at the permission stage is not a yes. "
+        "People often ask what you do twice because the first answer was only a label, so answer in plain outcomes. "
+        "If the person is the wrong one or has left, ask who handles this and for a number. A time the prospect "
+        "names is worth more than one you propose. "
+        f"The call has eight stages in this order: {trail}. The caller is now at stage {b.n}, {b.stage}. "
+        f"Everything you write must belong to this stage only. JOB OF THIS STAGE: {job} "
+        f"SHAPE OF THE SAY LINE: {shape} DO NOT: {dont}. "
+        + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
+        + "Earlier suggestions are listed below. Do not repeat their ideas or wording, and do not redo a stage "
+        "that is already finished. "
+        "Output exactly two lines and nothing else:\n"
         "READ: what the prospect means or wants and what the caller should aim for (under 25 words)\n"
         "SAY: what the caller says next (one to three short sentences)"
     )
-    said = b.words or ("nothing written yet. Nothing has happened at this stage yet, so READ should say what to "
-                       "listen for and SAY should be how to begin this stage." if not b.tap else "nothing written yet")
-    user_msg = (f"Prospect: {b.name or 'unknown'}, {b.role or 'role unknown'}, {b.company or 'company unknown'}.\n"
-                f"Earlier in the call: {b.earlier or 'nothing yet'}.\n"
-                f"What the prospect just said: {said}")
-    if b.avoid:
-        user_msg += "\nDo not reuse the wording of these earlier suggestions:\n" + "\n".join(f"- {a}" for a in b.avoid[-3:])
-    try:
-        models = [os.environ.get("GROQ_SUGGEST_MODEL", "openai/gpt-oss-120b"),
-                  os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")]
-        text = groq_chat([{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+    said = b.words or ("nothing written yet." if b.tap else
+                       "nothing yet. Nothing has happened at this stage, so READ says what to listen for "
+                       "and SAY is how to begin this stage only.")
+    base_user = (f"Prospect: {b.name or 'unknown'}, {b.role or 'role unknown'}, {b.company or 'company unknown'}.\n"
+                 f"Earlier in the call: {b.earlier or 'nothing yet'}.\n"
+                 f"What the prospect just said: {said}")
+    seen = [x for x in (b.previous + b.avoid) if x]
+    if seen:
+        base_user += "\nEarlier suggestions (do not repeat):\n" + "\n".join(f"- {x}" for x in seen[-6:])
+    models = [os.environ.get("GROQ_SUGGEST_MODEL", "openai/gpt-oss-120b"),
+              os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")]
+
+    def run(extra=""):
+        text = groq_chat([{"role": "system", "content": system},
+                          {"role": "user", "content": base_user + extra}],
                          temperature=0.5, max_tokens=1400, effort="medium", models=models) or ""
         read, say = "", ""
         for line in text.splitlines():
@@ -409,6 +458,15 @@ def suggest(b: SuggestIn, user=Depends(current_user)):
                 say = line.split(":", 1)[1].strip()
         if not say and text and "READ:" not in text.upper():
             say = text.strip()
+        return read, say
+
+    try:
+        read, say = run()
+        if say and _similar(say, seen):
+            read2, say2 = run("\nYour last attempt repeated an earlier line. Write a clearly different line that fits "
+                              f"stage {b.n} ({b.stage}) only.")
+            if say2:
+                read, say = read2 or read, say2
         return {"line": say.replace("!", "."), "read": read}
     except Exception as e:
         print("SUGGEST ERROR:", repr(e))
