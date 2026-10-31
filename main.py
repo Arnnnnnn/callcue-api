@@ -204,19 +204,20 @@ STYLES = ["warm and casual", "direct and brief", "curious and friendly",
           "confident and professional", "relaxed and conversational"]
 
 
-def groq_chat(messages, temperature=0.8, max_tokens=900):
-    payload = {"model": os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
-               "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-    for extra in ({"reasoning_effort": "low"}, {}):
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions",
-                          headers={"Authorization": f"Bearer {GROQ_KEY}"},
-                          json={**payload, **extra}, timeout=20)
-        if r.ok:
-            text = (r.json()["choices"][0]["message"].get("content") or "").strip()
-            if text:
-                return text
-        else:
-            print("GROQ SAY ERROR:", r.status_code, r.text[:200])
+def groq_chat(messages, temperature=0.8, max_tokens=900, effort="low", models=None):
+    models = models or [os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")]
+    for model in models:
+        for extra in ({"reasoning_effort": effort}, {}):
+            r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                              headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                              json={"model": model, "messages": messages, "temperature": temperature,
+                                    "max_tokens": max_tokens, **extra}, timeout=25)
+            if r.ok:
+                text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+                if text:
+                    return text
+            else:
+                print("GROQ ERROR:", model, r.status_code, r.text[:200])
     return None
 
 
@@ -365,24 +366,50 @@ class SuggestIn(BaseModel):
 def suggest(b: SuggestIn, user=Depends(current_user)):
     coach = STAGE_COACH.get(b.n, "Write the next natural line the caller can say.")
     tap = TAP_COACH.get(b.tap or "", "")
-    system = ("You suggest what a salesperson says next on a live cold call to a business owner or manager in India. "
-              f"The caller is {b.me or 'the caller'}. "
-              f"What the caller offers: {b.offer or 'not stated, so do not describe the offer beyond saying why you called'}. "
-              "Rules: one or two short spoken sentences; plain words; no exclamation marks; no flattery; "
-              "use the prospect's name at most once; never invent facts about the offer, numbers, results or the prospect; "
-              "reply in the language the prospect used (English, Hindi or Hinglish), English if unclear; "
-              "the name, company and role describe the PROSPECT, never the caller. "
-              f"Stage {b.n} ({b.stage}): {coach} " + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
-              + "Return only the line the caller should say.")
+    offer = b.offer or "not stated, so say nothing about the offer beyond why you called"
+    system = (
+        "You are a calm, experienced sales call coach helping a caller during a live cold call to a business "
+        "owner or senior manager in India. "
+        f"The caller is {b.me or 'the caller'}. What the caller offers: {offer}. "
+        "Voice: formal, polite and slightly friendly Indian business English. Use 'please' and 'may I' naturally; "
+        "no slang, no exclamation marks, no flattery, no pressure. "
+        "Think about the situation first, then write the reply. "
+        "Rules: respond directly to what the prospect actually said, using their own words, and answer any question "
+        "they asked before asking your own. Ask at most one question. Never invent facts about the offer, results, "
+        "numbers, clients or the prospect. The name, company and role describe the PROSPECT, never the caller. "
+        "Use the prospect's name at most once. Reply in the language the prospect used (English, Hindi or Hinglish), "
+        "English if unclear. "
+        "What real calls showed: 'send it on WhatsApp or email' is common and often a polite brush-off, so accept it, "
+        "confirm the channel and ask when you may follow up. A question back at the permission stage ('from where?') "
+        "is not a yes. People often ask what you do twice because the first answer was only a label, so answer in plain "
+        "outcomes. If the person is the wrong one or has left, ask who handles this and for a number. A time the "
+        "prospect names is worth more than one you propose. "
+        f"Stage {b.n} ({b.stage}): {coach} " + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
+        + "Output exactly two lines and nothing else:\n"
+        "READ: what the prospect means or wants and what the caller should aim for (under 25 words)\n"
+        "SAY: what the caller says next (one to three short sentences)"
+    )
+    said = b.words or ("nothing written yet. Nothing has happened at this stage yet, so READ should say what to "
+                       "listen for and SAY should be how to begin this stage." if not b.tap else "nothing written yet")
     user_msg = (f"Prospect: {b.name or 'unknown'}, {b.role or 'role unknown'}, {b.company or 'company unknown'}.\n"
                 f"Earlier in the call: {b.earlier or 'nothing yet'}.\n"
-                f"What the prospect just said: {b.words or 'nothing written yet'}.")
+                f"What the prospect just said: {said}")
     if b.avoid:
         user_msg += "\nDo not reuse the wording of these earlier suggestions:\n" + "\n".join(f"- {a}" for a in b.avoid[-3:])
     try:
-        line = groq_chat([{"role": "system", "content": system},
-                          {"role": "user", "content": user_msg}], temperature=0.7)
-        return {"line": line or ""}
+        models = [os.environ.get("GROQ_SUGGEST_MODEL", "openai/gpt-oss-120b"),
+                  os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")]
+        text = groq_chat([{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+                         temperature=0.5, max_tokens=1400, effort="medium", models=models) or ""
+        read, say = "", ""
+        for line in text.splitlines():
+            if line.upper().startswith("READ:"):
+                read = line.split(":", 1)[1].strip()
+            elif line.upper().startswith("SAY:"):
+                say = line.split(":", 1)[1].strip()
+        if not say and text and "READ:" not in text.upper():
+            say = text.strip()
+        return {"line": say.replace("!", "."), "read": read}
     except Exception as e:
         print("SUGGEST ERROR:", repr(e))
-        return {"line": ""}
+        return {"line": "", "read": ""}
