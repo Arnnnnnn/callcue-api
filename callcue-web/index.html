@@ -39,6 +39,10 @@ textarea{min-height:92px;resize:vertical}
 .tap{background:#10131a;border:1px solid var(--line);border-radius:10px;padding:14px 10px;font-weight:600;font-size:.9rem}
 .tap.on{background:var(--ac);border-color:var(--ac);color:#08111a}
 .note{color:#ffcf6b;font-size:.82rem;margin:0 0 14px}
+.sug{background:#10131a;border:1px dashed var(--ac);border-radius:10px;padding:12px 14px;margin:0 0 14px}
+.sug .sl{margin:0;font-size:1.05rem;font-weight:500}.sug .sh{color:var(--mute);font-size:.82rem;margin:0}
+.sug .rg{background:none;border:0;color:var(--ac);padding:8px 0 0;font-size:.8rem}
+.chk{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:.85rem;margin:0 0 10px}.chk input{width:auto}
 .acts{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 35%);padding:22px 16px 14px}
 .acts div{max-width:980px;margin:0 auto;display:flex;gap:8px}.acts .grow{flex:1}
 .bar{position:relative;display:flex;justify-content:space-between;width:100%;background:none;border:0;border-radius:8px;padding:7px 10px;margin-bottom:4px;overflow:hidden;text-align:left}
@@ -89,8 +93,9 @@ const S=[
 {n:"Next step",does:"Agree one concrete thing, named, with a time or a channel.",say:["Send it on WhatsApp, I will look.","Call me Tuesday after two.","Talk to my colleague, I will give you the number."],taps:["Report on WhatsApp","Report by email","Call at a time they named","Referred to a colleague"],note:"Said right after your purpose, \"send it\" is often a brush-off. A time they name is worth more."},
 {n:"Close",does:"End clearly and record the outcome, the next step and their words from stage 5.",say:["The line drops mid-sentence.","A warm goodbye after a no is still a no.","Thank you, send it across."],taps:["Ended clearly","Line dropped","They hung up","Warm goodbye after a no"]}];
 const OL={agreed_to_receive_report:"Report agreed",next_step_agreed:"Next step agreed",interested:"Interested",follow_up:"Follow up",call_again:"Call again",not_interested:"Not interested",do_not_call:"Do not call",wrong_person:"Wrong person",moved_company:"Moved company"};
-let token=null,calls=[],flt=0,t0=null;
-const fresh=()=>({view:"home",i:0,reach:0,taps:{},words:{},who:{},secs:0,out:null,why:""});
+const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+let token=null,calls=[],flt=0,ME="",OFFER=ls("cc.offer")||"",AI=ls("cc.ai")!=="0";
+const fresh=()=>({view:"home",i:0,reach:0,taps:{},words:{},who:{},secs:0,out:null,why:"",sug:{}});
 let st=fresh();
 async function api(p,o={}){o.headers={...(o.headers||{}),...(token?{Authorization:"Bearer "+token}:{})};const r=await fetch(API+p,o);if(r.status===401){gate("Session expired. Please sign in again.");throw 0}if(!r.ok)throw new Error(r.status);return r.json();}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
@@ -124,6 +129,8 @@ function home(){
   return `<section class="card"><h2>New call</h2>
   <div class="two"><input id="wn" placeholder="Name" value="${esc(w.name)}"><input id="wc" placeholder="Company" value="${esc(w.company)}"></div>
   <div class="two"><input id="wr" placeholder="Role" value="${esc(w.role)}"><input id="wp" placeholder="Phone or email" value="${esc(w.contact)}"></div>
+  <input id="wo" placeholder="What you offer, in one line (the AI uses only this)" value="${esc(OFFER)}" style="margin-bottom:8px">
+  <label class="chk"><input type="checkbox" id="wai" ${AI?"checked":""}> AI reply suggestions</label>
   <button class="btn pri" data-a="start">Start call</button></section>
   <section class="card"><h2>Where my calls end</h2>${cnt.map((n,i)=>`<button class="bar${flt===i+1?" on":""}" data-a="flt" data-i="${i+1}"><i style="width:${n/mx*100}%"></i><span>${i+1} · ${S[i].n}</span><b>${n}</b></button>`).join("")}
   <p class="hint">Tap a stage to filter the list${flt?` · <a href="#" data-a="flt" data-i="0">clear</a>`:""}</p></section>
@@ -139,7 +146,8 @@ function callv(){
   <h2>They may say</h2><ul class="say">${s.say.map(x=>`<li>“${x}”</li>`).join("")}</ul>
   <h2>What happened</h2><div class="taps">${s.taps.map(t=>`<button class="tap${st.taps[i]===t?" on":""}" data-a="tap" data-t="${esc(t)}">${t}</button>`).join("")}</div>
   ${s.note?`<p class="note">${s.note}</p>`:""}
-  <h2>Their words</h2><textarea id="w" placeholder="Only what they said, as they said it">${esc(st.words[i]||"")}</textarea></section></div>
+  ${AI?`<h2>Suggested reply</h2><div class="sug" id="sug">${sugHTML(i)}</div>`:""}
+  <h2>Their words</h2><textarea id="w" placeholder="What they said, as they said it. The AI reads this.">${esc(st.words[i]||"")}</textarea></section></div>
   <div class="acts"><div><button class="btn" data-a="back" ${i?"":"disabled"}>‹ Back</button><button class="btn pri grow" data-a="next">${i<7?"Next: "+S[i+1].n+" ›":"Finish"}</button><button class="btn end" data-a="end">End call</button></div></div>`;
 }
 function savev(){
@@ -152,7 +160,7 @@ function savev(){
   <h2>Outcome${st.why?` · suggested from ${esc(st.why)}`:""}</h2><div class="outs">${Object.entries(OL).map(([k,l])=>`<button class="tap${st.out===k?" on":""}" data-a="out" data-k="${k}">${l}</button>`).join("")}</div>
   <div style="display:flex;gap:8px"><button class="btn" data-a="resume">‹ Back to call</button><button class="btn pri grow" data-a="save">Save call</button><button class="btn end" data-a="discard">Discard</button></div></section>`;
 }
-function render(){$("app").innerHTML=st.view==="home"?home():st.view==="call"?callv():savev();tick();}
+function render(){$("app").innerHTML=st.view==="home"?home():st.view==="call"?callv():savev();tick();if(st.view==="call"&&AI)suggest(st.i);}
 function tick(){const e=$("tm");if(e)e.textContent=String(Math.floor(st.secs/60)).padStart(2,"0")+":"+String(st.secs%60).padStart(2,"0");}
 setInterval(()=>{if(st.view==="call"){st.secs++;tick();}},1000);
 function grabWords(){const e=$("w");if(e)st.words[st.i]=e.value.trim();}
@@ -165,20 +173,47 @@ async function save(){
 }
 $("app").addEventListener("click",e=>{
   const a=e.target.closest("[data-a]");if(!a)return;e.preventDefault();const k=a.dataset.a;
-  if(k==="start"){st.who={name:$("wn").value.trim(),company:$("wc").value.trim(),role:$("wr").value.trim(),contact:$("wp").value.trim()};st.view="call";st.i=0;st.secs=0;render();}
+  if(k==="start"){st.who={name:$("wn").value.trim(),company:$("wc").value.trim(),role:$("wr").value.trim(),contact:$("wp").value.trim()};OFFER=$("wo").value.trim();AI=$("wai").checked;try{localStorage.setItem("cc.offer",OFFER);localStorage.setItem("cc.ai",AI?"1":"0");}catch(e){}st.view="call";st.i=0;st.secs=0;render();}
   else if(k==="flt"){flt=flt===+a.dataset.i?0:+a.dataset.i;render();}
   else if(k==="tap"){const t=a.dataset.t;st.taps[st.i]=st.taps[st.i]===t?undefined:t;if(!st.taps[st.i])delete st.taps[st.i];grabWords();render();}
   else if(k==="go"){grabWords();st.i=+a.dataset.i;st.reach=Math.max(st.reach,st.i);render();}
   else if(k==="next"){if(st.i===7)endCall();else{grabWords();st.i++;st.reach=Math.max(st.reach,st.i);render();}}
   else if(k==="back"){grabWords();st.i--;render();}
   else if(k==="end")endCall();
+  else if(k==="regen")suggest(st.i,true);
   else if(k==="out"){st.out=a.dataset.k;st.why="";render();}
   else if(k==="resume"){st.view="call";render();}
   else if(k==="save")save();
   else if(k==="discard"){if(confirm("Discard this call without saving?")){st=fresh();render();}}
 });
+function sugHTML(i){
+  const x=st.sug[i];
+  if(!x)return '<p class="sh">A suggested line appears here.</p>';
+  if(x.busy)return '<p class="sh">Thinking…</p>';
+  if(!x.text)return '<p class="sh">Could not get a suggestion.</p><button class="rg" data-a="regen">↻ Try again</button>';
+  return `<p class="sl">“${esc(x.text)}”</p><button class="rg" data-a="regen">↻ New line</button>`;
+}
+function paint(){const e=$("sug");if(e)e.innerHTML=sugHTML(st.i);}
+const earlier=i=>S.slice(0,i).map((x,k)=>st.taps[k]?`${x.n}: ${st.taps[k]}`:"").filter(Boolean).concat(i>4&&st.words[4]?["Their need, in their words: "+st.words[4]]:[]).join("; ");
+async function suggest(i,force){
+  const tap=st.taps[i]||"",w=st.words[i]||"",key=[i,tap,w].join("|"),cur=st.sug[i];
+  if(!force&&cur&&cur.key===key)return;
+  const hist=(cur&&cur.hist)||[];
+  st.sug[i]={key,text:"",busy:true,hist};paint();
+  try{
+    const d=await post("/suggest",{stage:S[i].n,n:i+1,tap:tap||null,words:w||null,name:st.who.name||null,company:st.who.company||null,role:st.who.role||null,me:ME||null,offer:OFFER||null,earlier:earlier(i)||null,avoid:hist.slice(-3)});
+    st.sug[i]={key,text:d.line||"",busy:false,hist:d.line?[...hist,d.line]:hist};
+  }catch(e){if(e===0)return;st.sug[i]={key,text:"",busy:false,hist};}
+  if(st.view==="call"&&st.i===i)paint();
+}
+let wt;
+$("app").addEventListener("input",e=>{
+  if(e.target.id!=="w")return;
+  st.words[st.i]=e.target.value.trim();
+  clearTimeout(wt);wt=setTimeout(()=>{if(AI&&st.view==="call")suggest(st.i);},900);
+});
 function gate(t){$("app0").classList.add("hide");$("gate").classList.remove("hide");$("gmsg").textContent=t||"";}
-function enter(s){token=s.access_token;const m=s.user.user_metadata||{};$("me").textContent=m.full_name||m.name||(s.user.email||"");$("gate").classList.add("hide");$("app0").classList.remove("hide");load();}
+function enter(s){token=s.access_token;const m=s.user.user_metadata||{};ME=m.full_name||m.name||(s.user.email||"").split("@")[0];$("me").textContent=ME;$("gate").classList.add("hide");$("app0").classList.remove("hide");load();}
 $("google").onclick=async()=>{$("gmsg").textContent="Opening Google…";const{error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin}});if(error)$("gmsg").textContent=error.message;};
 $("so").onclick=async()=>{await sb.auth.signOut();location.reload();};
 sb.auth.onAuthStateChange((_e,s)=>{if(s)token=s.access_token;});

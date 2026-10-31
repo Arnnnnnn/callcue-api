@@ -310,3 +310,79 @@ def adapt(b: AdaptIn, user=Depends(current_user)):
     except Exception as e:
         print("ADAPT ERROR:", repr(e))
         return {"reply": b.reply, "follow_up": b.follow_up}
+
+
+STAGE_COACH = {
+    1: "Reach the right person and say who you are in one line. If someone else answered, ask for the person by name.",
+    2: "Say in one or two plain sentences why you called, in words they could repeat to a colleague.",
+    3: "Ask whether they can talk now. Accept a yes, a no or a callback time. A question back is not a yes: answer it in one line, then ask again.",
+    4: "Ask ONE open question about their company and their work. Do not talk about your own company yet.",
+    5: "Ask ONE follow-up that draws out what they are trying to do or struggling with, in their own words. Do not pitch.",
+    6: "Show you understood the reason for the no by saying it back in a few words, then ask ONE question about it. Do not argue or talk over it.",
+    7: "Agree ONE concrete next step with a channel or a time. A time they name is better than one you propose.",
+    8: "End clearly: repeat the next step, thank them and say goodbye. If the answer was no, close warmly without pushing.",
+}
+TAP_COACH = {
+    "Switchboard or assistant": "Ask for the person by name and give a one-line reason a receptionist can pass on.",
+    "Wrong person": "Thank them, ask who handles this (growth, marketing or the owner) and for a name or number.",
+    "Person has left": "Ask who has taken over that role and for their name or number.",
+    "Asked what we do": "Answer in one plain sentence, then ask if that is relevant to them.",
+    "Asked who we are": "Say your name and company once, then give the reason for the call.",
+    "Asked where we got the number": "Answer honestly and briefly (a public business listing), offer to stop calling, and ask for twenty seconds.",
+    "Said it is not relevant": "Do not argue. Ask what would make it relevant, or whether someone else handles it.",
+    "Asked who or what first": "Answer in one line, then ask again whether now is a good time.",
+    "Busy, call later": "Thank them and get a specific time to call back.",
+    "No": "Accept it politely and ask if you may send a short note.",
+    "One-line answer": "Ask a second, easier question about the same topic.",
+    "Corrected us": "Thank them for the correction and ask the same question about the right thing.",
+    "Asked about us first": "Give one short sentence about you, then turn it back to them.",
+    "Said nothing is needed": "Accept it and ask one light question about how they handle growth today.",
+    "Asked what we can do": "Ask what they are trying to achieve before answering, in one sentence only.",
+    "Handled in-house": "Do not criticise their team. Ask what they would still want from outside.",
+    "Send it in writing": "Agree, but ask one short question so what you send is relevant, and confirm the channel.",
+    "Report on WhatsApp": "Confirm the number and ask when you may follow up.",
+    "Report by email": "Confirm the address and ask when you may follow up.",
+    "Call at a time they named": "Repeat the time back and confirm the number.",
+    "Referred to a colleague": "Ask for the colleague's name and number and whether you may mention them.",
+}
+
+
+class SuggestIn(BaseModel):
+    stage: str
+    n: int
+    tap: str | None = None
+    words: str | None = None
+    name: str | None = None
+    company: str | None = None
+    role: str | None = None
+    me: str | None = None
+    offer: str | None = None
+    earlier: str | None = None
+    avoid: list[str] = []
+
+
+@app.post("/suggest")
+def suggest(b: SuggestIn, user=Depends(current_user)):
+    coach = STAGE_COACH.get(b.n, "Write the next natural line the caller can say.")
+    tap = TAP_COACH.get(b.tap or "", "")
+    system = ("You suggest what a salesperson says next on a live cold call to a business owner or manager in India. "
+              f"The caller is {b.me or 'the caller'}. "
+              f"What the caller offers: {b.offer or 'not stated, so do not describe the offer beyond saying why you called'}. "
+              "Rules: one or two short spoken sentences; plain words; no exclamation marks; no flattery; "
+              "use the prospect's name at most once; never invent facts about the offer, numbers, results or the prospect; "
+              "reply in the language the prospect used (English, Hindi or Hinglish), English if unclear; "
+              "the name, company and role describe the PROSPECT, never the caller. "
+              f"Stage {b.n} ({b.stage}): {coach} " + (f"What just happened: {b.tap}. {tap} " if b.tap else "")
+              + "Return only the line the caller should say.")
+    user_msg = (f"Prospect: {b.name or 'unknown'}, {b.role or 'role unknown'}, {b.company or 'company unknown'}.\n"
+                f"Earlier in the call: {b.earlier or 'nothing yet'}.\n"
+                f"What the prospect just said: {b.words or 'nothing written yet'}.")
+    if b.avoid:
+        user_msg += "\nDo not reuse the wording of these earlier suggestions:\n" + "\n".join(f"- {a}" for a in b.avoid[-3:])
+    try:
+        line = groq_chat([{"role": "system", "content": system},
+                          {"role": "user", "content": user_msg}], temperature=0.7)
+        return {"line": line or ""}
+    except Exception as e:
+        print("SUGGEST ERROR:", repr(e))
+        return {"line": ""}
