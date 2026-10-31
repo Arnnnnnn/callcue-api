@@ -9,41 +9,50 @@
 <link rel="preconnect" href="https://callcue-api.onrender.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0e1116;--card:#161a22;--line:#272d3a;--ink:#eef1f6;--mute:#8d96a6;--ac:#7cc4ff;--bad:#ff7b72}
+:root,[data-theme=dark]{--bg:#0e1116;--card:#161a22;--line:#272d3a;--ink:#eef1f6;--mute:#8d96a6;--ac:#7cc4ff;--act:var(--ac);--bad:#ff7b72;--inp:var(--inp);--hi:var(--hi);--onac:var(--onac)}
+[data-theme=light]{--bg:#f3f5f9;--card:#fff;--line:#dde2ea;--ink:#1a1d24;--mute:#5f6b7c;--act:color-mix(in srgb,var(--ac) 45%,#000);--bad:#d92d20;--inp:#f3f5f9;--hi:#e6ecf6}
+[data-theme=warm]{--bg:#241e1a;--card:#302823;--line:#4a3f38;--ink:#f6ede4;--mute:#b8a79a;--inp:#271f1b;--hi:#3a2f29}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 Inter,system-ui,sans-serif;padding:16px 16px 90px}
+html{scrollbar-gutter:stable}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 .94rem/1.45 Inter,system-ui,sans-serif;padding:16px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+body.incall{padding-bottom:96px}
 button,textarea,input{font:inherit;color:inherit}button{cursor:pointer}
 :focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-.hide{display:none!important}.wrap{max-width:980px;margin:0 auto}
+.hide{display:none!important}.wrap{max-width:980px;margin:0 auto;width:100%}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .brand{font-weight:700;font-size:1.1rem;display:flex;align-items:center;gap:8px}.dot{width:9px;height:9px;border-radius:50%;background:#3ddc84}
 .who{color:var(--mute);font-size:.85rem;display:flex;gap:10px;align-items:center}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
 h2{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:0 0 12px;font-weight:600}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-input,textarea{width:100%;background:#10131a;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px}
+input,textarea{width:100%;background:var(--inp);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px}
 textarea{min-height:92px;resize:vertical}
 .btn{background:transparent;border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-weight:600}
 .btn:hover{border-color:var(--mute)}.btn:disabled{opacity:.4;cursor:default}
-.pri{background:var(--ac);border-color:var(--ac);color:#08111a}.end{border-color:var(--bad);color:var(--bad)}
-.call{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:start}
+.pri{background:var(--ac);border-color:var(--act);color:var(--onac)}.end{border-color:var(--bad);color:var(--bad)}
+.call{display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
 .rail{display:flex;flex-direction:column;gap:2px;position:sticky;top:12px}
-.rs{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;border:0;padding:7px 6px;border-radius:10px;color:var(--mute)}
+.rs{min-height:46px;display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;border:0;padding:7px 6px;border-radius:10px;color:var(--mute)}
 .rs em{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.72rem;font-weight:600}
-.rs small{display:block;color:var(--ac);font-size:.72rem}
-.rs.seen em{border-color:var(--ac);color:var(--ac)}.rs.cur{color:var(--ink);background:#1d2230}.rs.cur em{background:var(--ac);border-color:var(--ac);color:#08111a}
+.rs small{display:block;color:var(--act);font-size:.72rem}
+.rs.seen em{border-color:var(--act);color:var(--act)}.rs.cur{color:var(--ink);background:var(--hi)}.rs.cur em{background:var(--ac);border-color:var(--act);color:var(--onac)}
 .meta{color:var(--mute);font-size:.8rem;display:flex;justify-content:space-between}
 .stage h1{font-size:1.9rem;margin:4px 0 6px;letter-spacing:-.02em}.stage p.does{color:var(--mute);margin:0 0 16px}
 .say{margin:0 0 16px;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
-.say li{border-left:3px solid var(--ac);background:#10131a;padding:8px 12px;border-radius:0 10px 10px 0}
+.say li{border-left:3px solid var(--ac);background:var(--inp);padding:8px 12px;border-radius:0 10px 10px 0}
 .taps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.tap{background:#10131a;border:1px solid var(--line);border-radius:10px;padding:14px 10px;font-weight:600;font-size:.9rem}
-.tap.on{background:var(--ac);border-color:var(--ac);color:#08111a}
+.tap{background:var(--inp);border:1px solid var(--line);border-radius:10px;padding:14px 10px;font-weight:600;font-size:.9rem}
+.tap.on{background:var(--ac);border-color:var(--act);color:var(--onac)}
 .note{color:#ffcf6b;font-size:.82rem;margin:0 0 14px}
-.sug{background:#10131a;border:1px dashed var(--ac);border-radius:10px;padding:12px 14px;margin:0 0 14px}
+.sug{min-height:104px;background:var(--inp);border:1px dashed var(--ac);border-radius:10px;padding:12px 14px;margin:0 0 14px}
 .sug .sl{margin:0;font-size:1.05rem;font-weight:500}.sug .sh{color:var(--mute);font-size:.82rem;margin:0}
-.sug .rg{background:none;border:0;color:var(--ac);padding:8px 0 0;font-size:.8rem}
+.sug .rg{background:none;border:0;color:var(--act);padding:8px 0 0;font-size:.8rem}
 .chk{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:.85rem;margin:0 0 10px}.chk input{width:auto}
+.cr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);flex-wrap:wrap}.cr:first-of-type{border-top:0}
+.cr>div{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}.sw.on{border-color:var(--ink)}
+.btn.sm{padding:5px 11px;font-size:.82rem}.btn.on{border-color:var(--ac);color:var(--act)}
+body.compact .card{padding:12px}body.compact .tap{padding:9px 8px}body.compact .say li{padding:6px 10px}
 .acts{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 35%);padding:22px 16px 14px}
 .acts div{max-width:980px;margin:0 auto;display:flex;gap:8px}.acts .grow{flex:1}
 .bar{position:relative;display:flex;justify-content:space-between;width:100%;background:none;border:0;border-radius:8px;padding:7px 10px;margin-bottom:4px;overflow:hidden;text-align:left}
@@ -51,14 +60,14 @@ textarea{min-height:92px;resize:vertical}
 .bar.on{outline:1px solid var(--ac)}
 .row{border-top:1px solid var(--line);padding:12px 0}.row:first-of-type{border-top:0}
 .rt{display:flex;justify-content:space-between;gap:8px}.rt small,.hint{color:var(--mute);font-size:.8rem}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chip{border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:.75rem}.chip.o{border-color:var(--ac);color:var(--ac)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chip{border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:.75rem}.chip.o{border-color:var(--act);color:var(--act)}
 .q{margin:4px 0 0;color:var(--mute);font-style:italic}.ns{margin:4px 0 0;font-size:.85rem}
 .sum{display:grid;gap:6px;margin:0 0 14px}.sum div{display:flex;gap:10px}.sum b{flex:none;width:92px;color:var(--mute);font-weight:500}
 .outs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px}
-.legal{text-align:center;color:var(--mute);font-size:.75rem;padding:20px;opacity:.8}.legal a{color:inherit}
-.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#1d2230;border:1px solid var(--line);padding:9px 16px;border-radius:99px;font-size:.85rem;z-index:9}
-.gatewrap{min-height:80vh;display:flex;align-items:center;justify-content:center}.gatecard{max-width:430px;text-align:center;padding:30px 26px}
-.gatecard h1{margin:8px 0}.feats{list-style:none;padding:0;margin:18px 0;text-align:left;display:grid;gap:8px}.feats li{background:#10131a;border-radius:10px;padding:10px 12px}.feats small{display:block;color:var(--mute)}
+.legal{text-align:center;color:var(--mute);font-size:.75rem;padding:20px;opacity:.8;margin-top:auto}.legal a{color:inherit}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--hi);border:1px solid var(--line);padding:9px 16px;border-radius:99px;font-size:.85rem;z-index:9}
+.gatewrap{flex:1;display:flex;align-items:center;justify-content:center}.gatecard{max-width:430px;text-align:center;padding:30px 26px}
+.gatecard h1{margin:8px 0}.feats{list-style:none;padding:0;margin:18px 0;text-align:left;display:grid;gap:8px}.feats li{background:var(--inp);border-radius:10px;padding:10px 12px}.feats small{display:block;color:var(--mute)}
 .gbtn{width:100%;display:flex;justify-content:center;gap:10px;align-items:center;background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:10px;padding:12px;font-weight:500}
 @media(max-width:760px){.call{grid-template-columns:1fr}.rail{flex-direction:row;overflow-x:auto;position:static}.rs span{display:none}.rs.cur span{display:block}.rs small{display:none}.two,.outs{grid-template-columns:1fr 1fr}.stage h1{font-size:1.5rem}}
 </style>
@@ -73,10 +82,11 @@ textarea{min-height:92px;resize:vertical}
   <p class="hint" id="gmsg"></p>
 </section></div>
 <div class="wrap hide" id="app0">
-  <div class="top"><div class="brand"><span class="dot"></span>CallCue</div><div class="who"><span id="me"></span><button class="btn" id="so" style="padding:4px 10px;font-size:.8rem">Sign out</button></div></div>
+  <div class="top"><div class="brand"><span class="dot"></span>CallCue</div><div class="who"><span id="me"></span><button class="btn sm" id="cb">Customise</button><button class="btn" id="so" style="padding:4px 10px;font-size:.8rem">Sign out</button></div></div>
+  <div id="cust" class="card hide"></div>
   <div id="app"></div>
-  <footer class="legal">CallCue™ · © 2026 <a href="https://github.com/Arnnnnnn/" target="_blank" rel="noopener">Aryan Khanna</a> · Open source (MIT)</footer>
 </div>
+  <footer class="legal">CallCue™ · © 2026 <a href="https://github.com/Arnnnnnn/" target="_blank" rel="noopener">Aryan Khanna</a> · Open source (MIT)</footer>
 <div class="toast hide" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -96,6 +106,11 @@ const S=[
 {n:"Close",does:"End clearly and record the outcome, the next step and their words from stage 5.",say:["The line drops mid-sentence.","A warm goodbye after a no is still a no.","Thank you, send it across."],taps:["Ended clearly","Line dropped","They hung up","Warm goodbye after a no"]}];
 const OL={agreed_to_receive_report:"Report agreed",next_step_agreed:"Next step agreed",interested:"Interested",follow_up:"Follow up",call_again:"Call again",not_interested:"Not interested",do_not_call:"Do not call",wrong_person:"Wrong person",moved_company:"Moved company"};
 const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const P0={theme:"dark",accent:"#7cc4ff",size:"M",compact:false,say:true,timer:true,me:""};
+let P={...P0};try{Object.assign(P,JSON.parse(ls("cc.prefs")||"{}"));}catch(e){}
+const savePrefs=()=>{try{localStorage.setItem("cc.prefs",JSON.stringify(P));}catch(e){}};
+function applyPrefs(){const h=document.documentElement;h.dataset.theme=P.theme;h.style.setProperty("--ac",P.accent);h.style.fontSize={S:"14px",M:"16px",L:"18px"}[P.size]||"16px";document.body.classList.toggle("compact",!!P.compact);}
+applyPrefs();
 let token=null,calls=[],flt=0,loaded=false,ME="",OFFER=ls("cc.offer")||"",AI=ls("cc.ai")!=="0";
 const fresh=()=>({view:"home",i:0,reach:0,taps:{},words:{},who:{},secs:0,out:null,why:"",sug:{}});
 let st=fresh();
@@ -149,10 +164,10 @@ function callv(){
   const i=st.i,s=S[i],w=st.who;
   const rail=S.map((x,k)=>`<button class="rs${k===i?" cur":""}${k<=st.reach?" seen":""}" data-a="go" data-i="${k}"><em>${k+1}</em><span>${x.n}${st.taps[k]?`<small>${esc(st.taps[k])}</small>`:""}</span></button>`).join("");
   return `<div class="call"><nav class="rail">${rail}</nav><section class="card stage">
-  <div class="meta"><span>${esc(w.name||"Unknown")}${w.company?" · "+esc(w.company):""}${w.role?" · "+esc(w.role):""}</span><span id="tm"></span></div>
+  <div class="meta"><span>${esc(w.name||"Unknown")}${w.company?" · "+esc(w.company):""}${w.role?" · "+esc(w.role):""}</span><span id="tm"${P.timer?"":" hidden"}></span></div>
   <div class="meta" style="margin-top:10px"><span>Stage ${i+1} of 8</span></div>
   <h1>${s.n}</h1><p class="does">${s.does}</p>
-  <h2>They may say</h2><ul class="say">${s.say.map(x=>`<li>“${x}”</li>`).join("")}</ul>
+  ${P.say?`<h2>They may say</h2><ul class="say">${s.say.map(x=>`<li>“${x}”</li>`).join("")}</ul>`:""}
   <h2>What happened</h2><div class="taps">${s.taps.map(t=>`<button class="tap${st.taps[i]===t?" on":""}" data-a="tap" data-t="${esc(t)}">${t}</button>`).join("")}</div>
   ${s.note?`<p class="note">${s.note}</p>`:""}
   ${AI?`<h2>Suggested reply</h2><div class="sug" id="sug">${sugHTML(i)}</div>`:""}
@@ -169,7 +184,7 @@ function savev(){
   <h2>Outcome${st.why?` · suggested from ${esc(st.why)}`:""}</h2><div class="outs">${Object.entries(OL).map(([k,l])=>`<button class="tap${st.out===k?" on":""}" data-a="out" data-k="${k}">${l}</button>`).join("")}</div>
   <div style="display:flex;gap:8px"><button class="btn" data-a="resume">‹ Back to call</button><button class="btn pri grow" data-a="save">Save call</button><button class="btn end" data-a="discard">Discard</button></div></section>`;
 }
-function render(){$("app").innerHTML=st.view==="home"?home():st.view==="call"?callv():savev();tick();if(st.view==="call"&&AI)suggest(st.i);}
+function render(){$("app").innerHTML=st.view==="home"?home():st.view==="call"?callv():savev();tick();document.body.classList.toggle("incall",st.view==="call");if(st.view==="call"&&AI)suggest(st.i);}
 function tick(){const e=$("tm");if(e)e.textContent=String(Math.floor(st.secs/60)).padStart(2,"0")+":"+String(st.secs%60).padStart(2,"0");}
 setInterval(()=>{if(st.view==="call"){st.secs++;tick();}},1000);
 function grabWords(){const e=$("w");if(e)st.words[st.i]=e.value.trim();}
@@ -210,7 +225,7 @@ async function suggest(i,force){
   const hist=(cur&&cur.hist)||[];
   st.sug[i]={key,text:"",busy:true,hist};paint();
   try{
-    const d=await post("/suggest",{stage:S[i].n,n:i+1,tap:tap||null,words:w||null,name:st.who.name||null,company:st.who.company||null,role:st.who.role||null,me:ME||null,offer:OFFER||null,earlier:earlier(i)||null,avoid:hist.slice(-3)});
+    const d=await post("/suggest",{stage:S[i].n,n:i+1,tap:tap||null,words:w||null,name:st.who.name||null,company:st.who.company||null,role:st.who.role||null,me:(P.me||ME)||null,offer:OFFER||null,earlier:earlier(i)||null,avoid:hist.slice(-3)});
     st.sug[i]={key,text:d.line||"",busy:false,hist:d.line?[...hist,d.line]:hist};
   }catch(e){if(e===0)return;st.sug[i]={key,text:"",busy:false,hist};}
   if(st.view==="call"&&st.i===i)paint();
@@ -221,6 +236,27 @@ $("app").addEventListener("input",e=>{
   st.words[st.i]=e.target.value.trim();
   clearTimeout(wt);wt=setTimeout(()=>{if(AI&&st.view==="call")suggest(st.i);},900);
 });
+const ACC=["#7cc4ff","#3ddc84","#ffb454","#c792ff","#ff7a90"];
+function custHTML(){
+  const b=(p,v,l)=>`<button class="btn sm${P[p]===v?" on":""}" data-p="${p}" data-v="${v}">${l}</button>`;
+  const t=(p,l,on)=>`<button class="btn sm${on?" on":""}" data-p="${p}" data-t="1">${l}</button>`;
+  return `<h2>Make it yours</h2>
+  <div class="cr"><span>Your name (used by the AI)</span><input id="cn" style="max-width:220px" placeholder="${esc(ME||"Your name")}" value="${esc(P.me)}"></div>
+  <div class="cr"><span>Theme</span><div>${b("theme","dark","Dark")}${b("theme","light","Light")}${b("theme","warm","Warm")}</div></div>
+  <div class="cr"><span>Accent</span><div>${ACC.map(c=>`<button class="sw${P.accent===c?" on":""}" style="background:${c}" data-p="accent" data-v="${c}" aria-label="Accent ${c}"></button>`).join("")}</div></div>
+  <div class="cr"><span>Text size</span><div>${b("size","S","Small")}${b("size","M","Medium")}${b("size","L","Large")}</div></div>
+  <div class="cr"><span>Show</span><div>${t("compact","Compact",P.compact)}${t("say","They may say",P.say)}${t("timer","Timer",P.timer)}${t("ai","AI suggestions",AI)}</div></div>
+  <div class="cr"><span class="hint">Saved in this browser</span><button class="btn sm" data-p="reset">Reset</button></div>`;
+}
+$("cb").onclick=()=>{const c=$("cust");if(!c.classList.toggle("hide"))c.innerHTML=custHTML();};
+$("cust").addEventListener("click",e=>{
+  const a=e.target.closest("[data-p]");if(!a)return;const p=a.dataset.p;
+  if(p==="reset")P={...P0};
+  else if(p==="ai"){AI=!AI;try{localStorage.setItem("cc.ai",AI?"1":"0");}catch(_){}const w=$("wai");if(w)w.checked=AI;}
+  else if(a.dataset.t)P[p]=!P[p];else P[p]=a.dataset.v;
+  savePrefs();applyPrefs();$("cust").innerHTML=custHTML();if(st.view==="call")render();
+});
+$("cust").addEventListener("input",e=>{if(e.target.id==="cn"){P.me=e.target.value.trim();savePrefs();}});
 function gate(t){$("app0").classList.add("hide");$("gate").classList.remove("hide");$("gmsg").textContent=t||"";}
 function enter(s){token=s.access_token;const m=s.user.user_metadata||{};ME=m.full_name||m.name||(s.user.email||"").split("@")[0];$("me").textContent=ME;$("gate").classList.add("hide");$("app0").classList.remove("hide");load();}
 $("google").onclick=async()=>{$("gmsg").textContent="Opening Google…";const{error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin}});if(error)$("gmsg").textContent=error.message;};
