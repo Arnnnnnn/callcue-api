@@ -1,142 +1,192 @@
-# CallCue™
+# CallCue
 
-© 2026 Aryan Khanna. Open source under the [MIT License](LICENSE).
+A live guide for cold calls. CallCue walks a caller through the eight stages of a first call, suggests a polite reply at each stage using AI, and records every call by the stage it reached, so you can see where your calls actually end.
 
-CallCue is a live cold-call assistant for salespeople. While you are on a call it shows what to say at each stage, suggests calm, short replies to objections, and logs how every call went so you can see which objections come up most. The whole page can be rearranged to fit the way you work.
+**Live demo:** https://callcue-api-callcue-web.vercel.app/
+**API:** https://callcue-api.onrender.com (free tier, so the first request after a quiet spell can take up to a minute while it wakes up)
 
-## Features
+<!-- Add screenshots to a docs/ folder and uncomment:
+![Call screen](docs/call-screen.png)
+![Past calls](docs/past-calls.png)
+![Sign in](docs/sign-in.png)
+-->
 
-### During the call
-- **Call stages:** Opening, Discovery, Pitch and Close, each with a suggested line to say.
-- **Personalised lines:** AI rewrites the playbook line using the prospect's name, company and your notes, without inventing facts. It can be switched off to use the plain playbook and save AI quota.
-- **Objection handling:** tap an objection or type what the prospect said and get an approved reply plus a follow-up question, adapted to what they just said.
-- **Prospect details and call notes:** name, company, contact and what you know, saved with the call.
-- **Call timer.**
+## What it does
 
-### After the call
-- **Outcome logging:** record how the call went, along with the objection that came up.
-- **Custom outcome buttons:** set your own list (for example Booked demo, Send info, Callback, Not interested). Calls saved with an outcome that is no longer on the list are grouped under Other.
-- **Call history and stats:** review past calls and see outcome and objection counts.
+- **Eight-stage call guide.** One stage on screen at a time: Opening, Purpose, Permission, Their business, Their need, Objection, Next step, Close. Each stage shows what it is for, three things prospects tend to say, and four taps for what happened.
+- **Their words.** One free-text box per stage for the prospect's own words, which is the only typing a call needs.
+- **AI coach.** A separate panel on the right reads the stage, your taps, what the prospect said and everything that happened earlier in the call, then returns a short **read** of the situation and a **suggested reply** in formal, slightly friendly business English. Buttons say what you need right now (answer their question, they are hesitant, ask a follow-up, move to the next stage), and a note box lets you tell the AI what is happening.
+- **Save screen.** At the end of a call it suggests an outcome from what you tapped, and you can change it.
+- **Past calls.** Expandable rows with search, five calls per page, and swipe or buttons to turn pages. A bar chart shows how many of your calls ended at each stage, and you can filter by stage.
+- **Customise.** Theme (dark, light, warm), accent colour, text size, compact spacing, show or hide the "They may say" lines and the timer, and the name the AI uses for you. Saved in the browser.
+- **Google sign-in.** Each user sees only their own calls.
 
-### Make it your own
-- **Drag-and-drop layout:** click **Arrange**, drag any card by its handle to a new position or to the other column, then click **Done**. Works with mouse and touch, and the page scrolls when you drag near the edges.
-- **Page layout:** two columns or one column. On a phone the page is always one column, and your two-column arrangement is kept for larger screens.
-- **Sections:** show or hide Who you are calling, Call stage and lines, Objection replies, Call notes and Call history.
-- **Appearance:** dark or light theme, accent colour, text size, compact mode.
-- **Reset to default** restores the original layout, sections and outcomes.
+## The eight stages
 
-Preferences are saved in the browser, so each person gets their own setup that persists between visits.
+| # | Stage | What it is for |
+|---|-------|----------------|
+| 1 | Opening | Reach the right person and say who you are |
+| 2 | Purpose | Say why you called, in words they could repeat to a colleague |
+| 3 | Permission | Find out whether they will talk now |
+| 4 | Their business | Ask about their company before saying anything about yours |
+| 5 | Their need | Hear what they are trying to do or struggling with, in their own words |
+| 6 | Objection | Hear the reason for a no and understand it |
+| 7 | Next step | Agree one concrete thing, with a time or a channel |
+| 8 | Close | End clearly and record the outcome, the next step and their words |
 
-### Account
-- **Google sign-in** through Supabase Auth. Each user only sees their own calls.
+The lines under "They may say" and the AI's per-stage rules were written from patterns in a set of reference cold-call transcripts. **The transcripts are not part of this repository and must not be published.**
 
 ## Tech stack
 
-| Part | Technology | Hosted on |
-|------|-----------|-----------|
-| Frontend | Single-page `index.html` (vanilla JS, Supabase JS client) | Vercel |
-| Backend | FastAPI (`main.py`) | Render |
-| Database and auth | Supabase (Postgres and Google OAuth) | Supabase |
-| AI | Groq API (default model `openai/gpt-oss-20b`) | Groq |
-
-## How it works
-
-1. The user signs in with Google and the frontend gets a Supabase session token.
-2. The frontend calls the FastAPI backend with that token as a Bearer header. The backend checks it against Supabase before doing anything.
-3. The backend reads the **playbook** table (approved lines per stage and objection), asks Groq to tailor the wording, and falls back to the approved text or keyword matching if the AI call fails.
-4. Call outcomes are stored in the **calls** table, tagged with the user's id.
-
-## API endpoints
-
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| GET | `/` | No | Health check |
-| GET | `/playbook` | No | Approved lines and objection replies |
-| POST | `/reply` | Yes | Match what the prospect said to an objection and return a reply and follow-up |
-| POST | `/say` | Yes | Personalised line for a call stage |
-| POST | `/adapt` | Yes | Adapt an objection reply to what the prospect just said |
-| POST | `/calls` | Yes | Log a call outcome |
-| GET | `/calls` | Yes | List the user's calls |
-| GET | `/stats` | Yes | Outcome and objection counts |
-
-## Database
-
-Supabase tables:
-
-- `playbook`: `id`, `stage`, `objection`, `reply`, `follow_up`
-- `calls`: `outcome`, `objection`, `user_id`, `created_at`, plus optional `notes`, `prospect_name`, `prospect_company`, `prospect_contact`
-
-If the optional columns are missing, the backend still saves the core call record and tells the frontend that details were not stored.
-
-## Running locally
-
-### Backend
-
-```bash
-pip install fastapi uvicorn requests python-dotenv pydantic
-```
-
-Create a `.env` file:
-
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-key
-GROQ_API_KEY=your-groq-key
-GROQ_MODEL=openai/gpt-oss-20b   # optional
-```
-
-Start the server:
-
-```bash
-uvicorn main:app --reload
-```
-
-### Frontend
-
-Open `index.html` in a browser or serve it with any static server. In `index.html`, set:
-
-- `API` to your backend URL (for example `http://localhost:8000` locally)
-- `SB_URL` and `SB_KEY` to your Supabase project URL and publishable key
-
-Add your site URL to the allowed redirect URLs in Supabase (Authentication, URL Configuration) so Google sign-in can return to it.
-
-## Deployment
-
-- **Frontend:** push to GitHub and Vercel redeploys automatically. Hard reload (Ctrl+Shift+R) afterwards to skip the cached page.
-- **Backend:** deploy `main.py` on Render as a web service with start command `uvicorn main:app --host 0.0.0.0 --port $PORT`, and add the environment variables above.
-- **CORS** is currently open to all origins. Restrict `allow_origins` in `main.py` to your Vercel domain for production.
-
-## Project structure
+- **Frontend:** a single `index.html` (vanilla JavaScript and CSS, no build step), hosted on Vercel
+- **Backend:** Python with FastAPI, hosted on Render
+- **Database and auth:** Supabase (PostgreSQL and Google sign-in)
+- **AI:** Groq API (`openai/gpt-oss-120b` for suggestions, with `openai/gpt-oss-20b` as a fallback)
 
 ```
-CallCue/
+Browser (Vercel)  --Google sign-in-->  Supabase Auth
+       |
+       | Bearer token
+       v
+FastAPI (Render) --verifies token--> Supabase Auth
+       |                |
+       |                +--> Supabase (calls table)
+       +--> Groq (suggestions)
+```
+
+## Repository layout
+
+```
+.
+├── main.py            FastAPI app
+├── requirements.txt   Python dependencies
+├── .env.example       Names of the environment variables
 ├── callcue-web/
-│   └── index.html   # frontend
-├── main.py          # FastAPI backend
+│   └── index.html     The whole frontend
+├── LICENSE
 └── README.md
 ```
 
-Adjust this to match your actual folders.
+## Set it up yourself
 
-## Roadmap
+### 1. Supabase
 
-**Live transcript and suggestions** (planned, not built yet):
+Create a project, then run this in the SQL editor:
 
-- A transcript panel with a mic button that records short audio chunks and sends them to the API for transcription with Whisper on Groq.
-- Automatic objection detection from what the prospect says, showing the matching reply and follow-up.
-- Auto-filled notes, stage suggestions and an end-of-call summary with a suggested outcome.
-- The audio source decides what is possible. Calls made through the computer can separate "You" from "Prospect"; a phone on speaker only gives one mixed stream; calls on the phone alone cannot be captured by a web page.
-- Recording or transcribing a call can have legal requirements that vary by country and state, so a consent notice and a check of local rules come first.
-- Suggestions should be throttled to keep AI cost and latency down.
+```sql
+create table if not exists calls (
+  id bigint generated always as identity primary key,
+  created_at timestamptz default now(),
+  user_id uuid,
+  outcome text not null,
+  objection text,
+  notes text,
+  prospect_name text,
+  prospect_company text,
+  prospect_contact text,
+  prospect_role text,
+  stage_reached smallint,
+  taps jsonb,
+  words jsonb,
+  next_step text,
+  duration_seconds integer
+);
+```
 
-## Notes
+If you already have a `calls` table, add any missing columns with `alter table calls add column if not exists ...`.
 
-- Keep API keys in environment variables and out of the repo. The Supabase publishable key in `index.html` is meant for the browser, but the Groq key and any Supabase secret key must stay on the backend.
+The current frontend does not read the `playbook` table. The API still contains older routes for it (`/playbook`, `/reply`, `/say`, `/adapt`, `/stats`) that the interface no longer calls.
 
-## License
+**Security.** Use your project's **secret** key on the server only, never in the browser, and turn on row level security for `calls` if your server uses the secret key (it bypasses RLS). The browser only needs the **publishable** key, which is meant to be public.
 
-CallCue is open source under the [MIT License](LICENSE). © 2026 [Aryan Khanna](https://github.com/Arnnnnnn/).
+### 2. Google sign-in
 
-You are free to use, copy, modify and distribute the code, as long as the copyright notice and license text are kept in copies. The software is provided as is, with no warranty.
+1. In Google Cloud Console, set up the OAuth consent screen and create an OAuth client ID of type **Web application**. For the authorised redirect URI, use the callback address shown on Supabase's Google provider page (`https://<project>.supabase.co/auth/v1/callback`).
+2. In Supabase, go to Authentication, then Sign In / Providers, then Google. Enable it and paste the client ID and secret.
+3. In Authentication, then URL Configuration, set the **Site URL** and add a **Redirect URL** for your deployed frontend.
 
-The CallCue™ name is used by the author to identify the original project.
+While the consent screen is in Testing mode, only accounts you add as test users can sign in.
+
+### 3. Groq
+
+Create an API key at console.groq.com. Free-tier limits apply, and the larger model has tighter limits than the smaller one.
+
+### 4. Backend on Render
+
+1. Create a **Web Service** from this repository.
+2. Build command: `pip install -r requirements.txt`
+3. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+4. Add the environment variables below.
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `SUPABASE_URL` | yes | Your Supabase project URL |
+| `SUPABASE_KEY` | yes | Supabase key used by the server |
+| `GROQ_API_KEY` | yes | Groq API key |
+| `GROQ_SUGGEST_MODEL` | no | Model for suggestions (default `openai/gpt-oss-120b`) |
+| `GROQ_MODEL` | no | Fallback model (default `openai/gpt-oss-20b`) |
+
+Copy `.env.example` to `.env` for local runs. Never commit `.env`.
+
+### 5. Frontend on Vercel
+
+1. Import the repository and set the **Root Directory** to `callcue-web`. The framework is "Other", and there is nothing to build.
+2. At the top of the script in `callcue-web/index.html`, set the API address and your Supabase project URL and **publishable** key.
+
+### 6. Run locally
+
+```bash
+python -m venv venv
+source venv/bin/activate        # on Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env            # then fill in the values
+uvicorn main:app --reload
+```
+
+Open `callcue-web/index.html` through any static server, with the API address in the script pointed at `http://localhost:8000`, and add that origin to your Supabase redirect URLs.
+
+## API
+
+Every route except `/` and `/playbook` needs a Supabase access token in an `Authorization: Bearer ...` header. The server checks the token with Supabase on each request.
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/` | Health check |
+| POST | `/suggest` | AI read and suggested reply for the current stage (used by the interface) |
+| POST | `/calls` | Save a call. Falls back to a smaller record if the new columns are missing |
+| GET | `/calls` | List the signed-in user's calls, newest first |
+| GET | `/stats` | Outcome counts for the signed-in user |
+| GET | `/playbook` | Playbook rows (older interface) |
+| POST | `/reply`, `/say`, `/adapt` | Older objection and stage-line routes, not used by the current interface |
+
+## How the AI suggestions work
+
+`POST /suggest` builds a different prompt for each stage:
+
+- a **stage plan** with the job of the stage, the shape of the line to say, and what not to do (for example, no pitching before stage 5)
+- **coaching for each tap**, such as answering the "where did you get my number" question briefly and honestly, or confirming the channel and a follow-up time when someone says "send it on WhatsApp"
+- the **context so far**: earlier stages, what the prospect said, and the caller's own note
+- the **earlier suggestions**, so it does not repeat itself, with one automatic retry if a new suggestion is too similar
+- rules for voice and safety: formal and slightly friendly, no exclamation marks, no invented facts about your offer, replies in the language the prospect used (English, Hindi or Hinglish)
+
+The response has two lines, `READ` and `SAY`. The model tries `GROQ_SUGGEST_MODEL` first and falls back to `GROQ_MODEL`.
+
+The suggestion is an aid. The caller chooses what to say.
+
+## Privacy
+
+- Calls are stored with the signed-in user's ID, and the API only returns a user's own calls.
+- Signing in shares only the Google name and email.
+- Notes, prospect details and the prospect's words are stored in your own Supabase project.
+- Check the recording and consent rules where you and your prospects are before saving anything about a real call.
+
+## Limitations
+
+- On the free Render tier the API sleeps when idle, so the first load after a quiet period is slow. A free uptime monitor that pings `/` every 10 to 14 minutes avoids this.
+- The AI only knows what you tap and type, so a short note about what the prospect said gives much better suggestions.
+- There is no live transcription yet. Suggestions use the words you type.
+- Groq's free tier has rate limits.
+
+## Author and licence
+
+Created by **Aryan Khanna**. Released under the MIT License, see `LICENSE`.
