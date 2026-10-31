@@ -104,7 +104,7 @@ const when=t=>t?new Date(t).toLocaleString([],{day:"numeric",month:"short",hour:
 const jp=v=>{if(v&&typeof v==="object")return v;try{return JSON.parse(v)||{}}catch(e){return{}}};
 async function load(){try{calls=await api("/calls");}catch(e){if(e!==0)toast("Could not load your calls.");}render();}
 
-function suggest(){
+function suggestOutcome(){
   const t=st.taps,pick=(o,w)=>[o,w];
   if(t[0]==="Wrong person")return pick("wrong_person","Stage 1: wrong person");
   if(t[0]==="Person has left")return pick("moved_company","Stage 1: person has left");
@@ -164,7 +164,7 @@ function render(){$("app").innerHTML=st.view==="home"?home():st.view==="call"?ca
 function tick(){const e=$("tm");if(e)e.textContent=String(Math.floor(st.secs/60)).padStart(2,"0")+":"+String(st.secs%60).padStart(2,"0");}
 setInterval(()=>{if(st.view==="call"){st.secs++;tick();}},1000);
 function grabWords(){const e=$("w");if(e)st.words[st.i]=e.value.trim();}
-function endCall(){grabWords();st.reach=Math.max(st.reach,st.i);[st.out,st.why]=suggest();st.view="save";render();}
+function endCall(){grabWords();st.reach=Math.max(st.reach,st.i);[st.out,st.why]=suggestOutcome();st.view="save";render();}
 async function save(){
   const taps={},words={};S.forEach((x,k)=>{if(st.taps[k])taps[k+1]=st.taps[k];if(st.words[k])words[k+1]=st.words[k];});
   const w=st.who,b={outcome:st.out,prospect_name:w.name||null,prospect_company:w.company||null,prospect_contact:w.contact||null,prospect_role:w.role||null,stage_reached:st.reach+1,taps,words,next_step:st.taps[6]||null,duration_seconds:st.secs};
