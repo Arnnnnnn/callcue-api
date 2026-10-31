@@ -72,6 +72,13 @@ body.compact .card{padding:12px}body.compact .tap{padding:9px 8px}body.compact .
 .aiside h2{margin-top:0}
 @media(min-width:900px){.stage{display:grid;grid-template-columns:minmax(0,1fr) 330px;column-gap:26px;align-content:start}.stage>*{grid-column:1}.stage>.aiside{grid-column:2;grid-row:1/span 12;align-self:start;position:sticky;top:12px}}
 @media(max-width:860px){.hgrid{grid-template-columns:1fr}}
+.gatecard #gmsg{margin:10px 0 0;text-align:center}.gatecard #gmsg:empty{display:none}
+.mock{display:grid}
+.mock .slide{grid-area:1/1;opacity:0;transform:translateY(12px);transition:opacity .9s ease,transform .9s ease;pointer-events:none}
+.mock .slide.on{opacity:1;transform:none}
+.mock .dots{grid-row:2;display:flex;gap:6px;margin-top:12px}
+.dots i{width:6px;height:6px;border-radius:99px;background:var(--line);transition:background .6s,width .6s}.dots i.on{background:var(--ac);width:18px}
+@media(prefers-reduced-motion:reduce){.mock .slide,.dots i{transition:none}}
 .acts{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 35%);padding:22px 16px 14px}
 .acts div{max-width:760px;margin:0 auto;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 8px 28px rgba(0,0,0,.3)}.acts .grow{flex:1}
 .bar{position:relative;display:flex;justify-content:space-between;width:100%;background:none;border:0;border-radius:8px;padding:7px 10px;margin-bottom:4px;overflow:hidden;text-align:left}
@@ -102,18 +109,13 @@ body.compact .card{padding:12px}body.compact .tap{padding:9px 8px}body.compact .
       <li><i>2</i><div><b>A read, then a reply</b><small>The AI reads what the prospect said and suggests a formal, friendly answer.</small></div></li>
       <li><i>3</i><div><b>See where your calls end</b><small>Every call saved by stage, visible only to you.</small></div></li>
     </ul>
-    <div class="mock" aria-hidden="true">
-      <div class="steps"><span>1</span><span>2</span><span class="cur">3 Permission</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
-      <p class="mq">They said: “From where? Regarding what?”</p>
-      <p class="mr">A question back is not yet a yes. Answer briefly, then ask again.</p>
-      <p class="ms">“Certainly. In one line, I am calling about growth for your business. Is this a convenient time for two minutes?”</p>
-    </div>
+    <div class="mock" id="mock" aria-hidden="true"></div>
   </section>
   <section class="card gatecard">
     <h2>Welcome</h2><h3>Sign in to continue</h3>
     <p class="hint">Use your Google account. Your calls and notes stay private to you.</p>
     <button class="gbtn" id="google"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.8 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
-    <p class="hint" id="gmsg" style="min-height:1.2em"></p>
+    <p class="hint" id="gmsg"></p>
     <p class="fine">Signing in only shares your name and email with CallCue.</p>
   </section>
 </div></div>
@@ -295,8 +297,18 @@ $("cust").addEventListener("click",e=>{
   savePrefs();applyPrefs();$("cust").innerHTML=custHTML();if(st.view==="call")render();
 });
 $("cust").addEventListener("input",e=>{if(e.target.id==="cn"){P.me=e.target.value.trim();savePrefs();}});
+const DEMO=[
+{n:1,q:"“Who is this? Please tell me.”",r:"Someone has answered but does not know who is calling. Give your name and ask for the right person.",s:"“Good morning. May I please speak with the person who looks after growth at your company?”"},
+{n:3,q:"“From where? Regarding what?”",r:"A question back is not yet a yes. Answer briefly, then ask again.",s:"“Of course. I am calling about growth plans for businesses like yours. Would two minutes now be convenient?”"},
+{n:6,q:"“We already handle this in-house.”",r:"This is a reason, not a refusal. Understand it before you reply.",s:"“That is good to hear. May I ask what your team covers today, so I do not suggest anything you already do?”"},
+{n:7,q:"“Send it on WhatsApp, I will look.”",r:"Often a polite brush-off. Accept it, confirm the channel and ask when to follow up.",s:"“Certainly. May I confirm this is the right number, and would Thursday afternoon suit you for a short follow-up?”"}];
+const mock=$("mock");
+mock.innerHTML=DEMO.map((d,i)=>`<div class="slide${i?"":" on"}"><div class="steps">${Array.from({length:8},(_,k)=>k+1===d.n?`<span class="cur">${k+1} ${S[k].n}</span>`:`<span>${k+1}</span>`).join("")}</div><p class="mq">They said: ${d.q}</p><p class="mr">${d.r}</p><p class="ms">${d.s}</p></div>`).join("")+`<div class="dots">${DEMO.map((_,i)=>`<i${i?"":' class="on"'}></i>`).join("")}</div>`;
+const slides=[...mock.querySelectorAll(".slide")],dots=[...mock.querySelectorAll(".dots i")];
+let di=0,demoT=null;
+if(!matchMedia("(prefers-reduced-motion: reduce)").matches)demoT=setInterval(()=>{di=(di+1)%DEMO.length;slides.forEach((x,k)=>x.classList.toggle("on",k===di));dots.forEach((x,k)=>x.classList.toggle("on",k===di));},6000);
 function gate(t){$("app0").classList.add("hide");$("gate").classList.remove("hide");$("gmsg").textContent=t||"";}
-function enter(s){token=s.access_token;const m=s.user.user_metadata||{};ME=m.full_name||m.name||(s.user.email||"").split("@")[0];$("me").textContent=ME;$("gate").classList.add("hide");$("app0").classList.remove("hide");load();}
+function enter(s){clearInterval(demoT);token=s.access_token;const m=s.user.user_metadata||{};ME=m.full_name||m.name||(s.user.email||"").split("@")[0];$("me").textContent=ME;$("gate").classList.add("hide");$("app0").classList.remove("hide");load();}
 $("google").onclick=async()=>{$("gmsg").textContent="Opening Google…";const{error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin}});if(error)$("gmsg").textContent=error.message;};
 $("so").onclick=async()=>{await sb.auth.signOut();location.reload();};
 sb.auth.onAuthStateChange((_e,s)=>{if(s)token=s.access_token;});
